@@ -15,11 +15,15 @@ const PORT = process.env.PORT || 3001;
 
 // ─── Middleware ───────────────────────────────────────────────────────────
 
-// Allow requests from any frontend origin (update in production if needed)
+// CORS fix: use origin: true to reflect any origin (works for all frontends)
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "*",
+  origin: true,
   methods: ["GET", "POST"],
+  credentials: true,
 }));
+
+// Handle CORS preflight requests for all routes
+app.options("*", cors());
 
 app.use(express.json());
 
