@@ -87,7 +87,7 @@ function buildAlert(symbol, timeframe, direction, data) {
     sweepLevel: data.sweepLevel,
     currentPrice: data.currentPrice,
     // How far price has reclaimed past the sweep level (as %)
-    reclaimPercent: calcReclaimPercent(data.direction, data),
+    reclaimPercent: calcReclaimPercent(direction, data),
     timestamp: new Date().toISOString(),
   };
 }
