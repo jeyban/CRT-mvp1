@@ -475,6 +475,25 @@
     .legend-dot.bullish { background: var(--green); }
     .legend-dot.bearish { background: var(--red);   }
     .legend-dot.price   { background: var(--blue);  }
+
+    /* ── Stat spans (replaces <value> tag for browser compatibility) ──── */
+    .stat-label {
+      display: block;
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      display: block;
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .stat-value.bullish { color: var(--green); }
+    .stat-value.bearish { color: var(--red);   }
   </style>
 </head>
 
@@ -612,7 +631,6 @@
   <script>
     // ================================================================
     // ⚠️  REPLACE THIS URL WITH YOUR RENDER BACKEND URL
-    //     Find it on render.com → your service → the URL at the top
     //     Example: https://crypto-crt-scanner-xxxx.onrender.com/api
     // ================================================================
     const API_BASE = "https://crt-mvp1.onrender.com/api";
@@ -623,7 +641,6 @@
     let searchQuery = "";
     let isScanning  = { "1h": false, "4h": false, "1d": false };
 
-    // ── Fetch all alerts from backend ─────────────────────────────
     async function fetchAlerts() {
       try {
         const res  = await fetch(API_BASE + "/alerts");
@@ -641,12 +658,7 @@
       }
     }
 
-    // ── Render all three panels ───────────────────────────────────
-    function renderAll() {
-      renderLog("1h");
-      renderLog("4h");
-      renderLog("1d");
-    }
+    function renderAll() { renderLog("1h"); renderLog("4h"); renderLog("1d"); }
 
     function renderLog(tf) {
       const container = document.getElementById("log-" + tf);
@@ -672,112 +684,103 @@
           </div>`;
         return;
       }
-
       container.innerHTML = filtered.map(renderCard).join("");
     }
 
-    // ── Render a single alert card ────────────────────────────────
-    function renderCard(alert) {
-      const isBullish  = alert.direction === "BULLISH";
-      const dirClass   = isBullish ? "bullish" : "bearish";
-      const dirIcon    = isBullish ? "▲" : "▼";
-      const dirLabel   = isBullish ? "Bullish CRT" : "Bearish CRT";
-      const sweepLabel = isBullish ? "Swept Above" : "Swept Below";
-      const sweepValue = isBullish ? fmt(alert.c1High) : fmt(alert.c1Low);
-      const reclaimDir = isBullish ? "Below C1 High" : "Above C1 Low";
-      const time = new Date(alert.timestamp).toLocaleTimeString([], {
-        hour: "2-digit", minute: "2-digit"
-      });
+    function renderCard(a) {
+      // Guard: skip malformed alerts
+      if (!a || !a.symbol || !a.direction) return "";
 
+      const bull = a.direction === "BULLISH";
+      const dc   = bull ? "bullish" : "bearish";
+      const time = a.timestamp
+        ? new Date(a.timestamp).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })
+        : "—";
+
+      // Use <span> instead of <value> — custom tags can be invisible in some browsers
       return `
-        <div class="card ${dirClass}">
+        <div class="card ${dc}">
           <div class="card-header">
             <div class="card-symbol">
-              <span class="symbol-name">${alert.symbol.replace("USDT", "")}</span>
+              <span class="symbol-name">${(a.symbol || "").replace("USDT","")}</span>
               <span class="symbol-pair">/USDT</span>
             </div>
-            <div class="card-dir ${dirClass}">
-              <span class="dir-icon">${dirIcon}</span>
-              ${dirLabel}
+            <div class="card-dir ${dc}">
+              <span class="dir-icon">${bull ? "▲" : "▼"}</span>
+              ${bull ? "Bullish CRT" : "Bearish CRT"}
             </div>
           </div>
           <div class="card-body">
             <div class="stat-row">
               <div class="stat">
-                <label>Current Price</label>
-                <value class="price-live">$${fmt(alert.currentPrice)}</value>
+                <span class="stat-label">Current Price</span>
+                <span class="stat-value price-live">$${fmt(a.currentPrice)}</span>
               </div>
               <div class="stat">
-                <label>${sweepLabel}</label>
-                <value>$${sweepValue}</value>
-              </div>
-            </div>
-            <div class="stat-row">
-              <div class="stat">
-                <label>C1 High</label>
-                <value>$${fmt(alert.c1High)}</value>
-              </div>
-              <div class="stat">
-                <label>C1 Low</label>
-                <value>$${fmt(alert.c1Low)}</value>
+                <span class="stat-label">${bull ? "Swept Above" : "Swept Below"}</span>
+                <span class="stat-value">$${bull ? fmt(a.c1High) : fmt(a.c1Low)}</span>
               </div>
             </div>
             <div class="stat-row">
               <div class="stat">
-                <label>C2 High</label>
-                <value>$${fmt(alert.c2High)}</value>
+                <span class="stat-label">C1 High</span>
+                <span class="stat-value">$${fmt(a.c1High)}</span>
               </div>
               <div class="stat">
-                <label>C2 Low</label>
-                <value>$${fmt(alert.c2Low)}</value>
+                <span class="stat-label">C1 Low</span>
+                <span class="stat-value">$${fmt(a.c1Low)}</span>
               </div>
             </div>
             <div class="stat-row">
               <div class="stat">
-                <label>Reclaim %</label>
-                <value class="${dirClass}">${alert.reclaimPercent || "—"}%</value>
+                <span class="stat-label">C2 High</span>
+                <span class="stat-value">$${fmt(a.c2High)}</span>
               </div>
               <div class="stat">
-                <label>Now</label>
-                <value>${reclaimDir}</value>
+                <span class="stat-label">C2 Low</span>
+                <span class="stat-value">$${fmt(a.c2Low)}</span>
+              </div>
+            </div>
+            <div class="stat-row">
+              <div class="stat">
+                <span class="stat-label">Reclaim %</span>
+                <span class="stat-value ${dc}">${a.reclaimPercent || "—"}%</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Now</span>
+                <span class="stat-value">${bull ? "Below C1 High" : "Above C1 Low"}</span>
               </div>
             </div>
           </div>
           <div class="card-footer">
-            <span class="tf-badge">${alert.timeframe.toUpperCase()}</span>
+            <span class="tf-badge">${(a.timeframe || "").toUpperCase()}</span>
             <span class="scan-time">Scanned at ${time}</span>
           </div>
         </div>`;
     }
 
-    // ── Format price (auto decimal places) ───────────────────────
     function fmt(n) {
-      if (!n && n !== 0) return "—";
-      if (n < 0.01) return n.toFixed(6);
-      if (n < 1)    return n.toFixed(4);
-      if (n < 100)  return n.toFixed(3);
-      return n.toFixed(2);
+      if (n === undefined || n === null || isNaN(n)) return "—";
+      if (n < 0.01) return Number(n).toFixed(6);
+      if (n < 1)    return Number(n).toFixed(4);
+      if (n < 100)  return Number(n).toFixed(3);
+      return Number(n).toFixed(2);
     }
 
-    // ── Manual scan trigger ───────────────────────────────────────
     function triggerScan(tf) {
       if (isScanning[tf]) return;
       const btn = document.getElementById("scan-btn-" + tf);
-
       isScanning[tf] = true;
       if (btn) { btn.disabled = true; btn.textContent = "Scanning…"; }
 
-      console.log("Triggering scan → POST " + API_BASE + "/scan/" + tf);
+      console.log("POST → " + API_BASE + "/scan/" + tf);
 
       fetch(API_BASE + "/scan/" + tf, {
         method: "POST",
         headers: { "Content-Type": "application/json" }
       })
-      .then(function(res) {
-        console.log("Scan response status:", res.status);
-        return res.json();
-      })
-      .then(function(json) {
+      .then(r => r.json())
+      .then(json => {
         if (json.success) {
           showToast("✅ " + tf.toUpperCase() + " scan started! Results in ~30s.");
           setTimeout(fetchAlerts, 35000);
@@ -785,19 +788,18 @@
           showToast("⚠️ " + (json.error || "Unknown error"), true);
         }
       })
-      .catch(function(err) {
-        console.error("Scan trigger failed:", err.message);
-        showToast("❌ Cannot reach backend. Check the console.", true);
+      .catch(err => {
+        console.error("Scan failed:", err.message);
+        showToast("❌ Cannot reach backend.", true);
       })
-      .finally(function() {
-        setTimeout(function() {
+      .finally(() => {
+        setTimeout(() => {
           isScanning[tf] = false;
           if (btn) { btn.disabled = false; btn.textContent = "Scan " + tf.toUpperCase(); }
         }, 40000);
       });
     }
 
-    // ── UI helpers ────────────────────────────────────────────────
     function updateLastRefresh(lastScan) {
       const el    = document.getElementById("lastRefresh");
       const times = Object.values(lastScan || {}).filter(Boolean);
@@ -816,20 +818,18 @@
       t.className   = "toast " + (isError ? "toast-error" : "toast-success");
       t.textContent = msg;
       document.body.appendChild(t);
-      setTimeout(function() { t.classList.add("toast-visible"); }, 10);
-      setTimeout(function() {
+      setTimeout(() => t.classList.add("toast-visible"), 10);
+      setTimeout(() => {
         t.classList.remove("toast-visible");
-        setTimeout(function() { t.remove(); }, 400);
+        setTimeout(() => t.remove(), 400);
       }, 3500);
     }
 
-    // ── Search filter ─────────────────────────────────────────────
     document.getElementById("searchInput").addEventListener("input", function(e) {
       searchQuery = e.target.value.trim();
       renderAll();
     });
 
-    // ── Init: fetch on load, then auto-refresh every 60s ─────────
     fetchAlerts();
     setInterval(fetchAlerts, REFRESH_INTERVAL);
   </script>
