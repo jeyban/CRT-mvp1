@@ -15,19 +15,16 @@ const PORT = process.env.PORT || 3001;
 
 // ─── Middleware ───────────────────────────────────────────────────────────
 
-// CORS fix: use origin: true to reflect any origin (works for all frontends)
 app.use(cors({
   origin: true,
   methods: ["GET", "POST"],
   credentials: true,
 }));
 
-// Handle CORS preflight requests for all routes
 app.options("*", cors());
-
 app.use(express.json());
 
-// ─── Request logging (simple, no libraries needed) ────────────────────────
+// ─── Request logging ──────────────────────────────────────────────────────
 app.use((req, res, next) => {
   console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.path}`);
   next();
@@ -36,7 +33,6 @@ app.use((req, res, next) => {
 // ─── Routes ───────────────────────────────────────────────────────────────
 app.use("/api", scannerRoutes);
 
-// Root endpoint — quick sanity check
 app.get("/", (req, res) => {
   res.json({
     name: "Crypto CRT Scanner API",
@@ -48,14 +44,20 @@ app.get("/", (req, res) => {
 // ─── Start Server ─────────────────────────────────────────────────────────
 app.listen(PORT, async () => {
   console.log(`\n🚀 CRT Scanner API running on port ${PORT}`);
-  console.log(`   http://localhost:${PORT}\n`);
 
   // Start cron schedulers
   startScheduler();
 
-  // Optional: run an initial 1H scan on boot so dashboard isn't empty
-  console.log("▶ Running initial 1H scan on startup...");
-  runScan("1h").catch(console.error);
+  // ── Run ALL three scans on every startup ────────────────────────────────
+  // IMPORTANT: Render free tier shuts down after 15min of inactivity.
+  // When it wakes up, in-memory alerts are wiped. Running all scans on boot
+  // ensures the dashboard always has fresh data immediately after wakeup.
+  console.log("▶ Running startup scans for all timeframes (1H → 4H → 1D)...");
+  runScan("1h")
+    .then(() => runScan("4h"))
+    .then(() => runScan("1d"))
+    .then(() => console.log("✅ All startup scans complete."))
+    .catch(console.error);
 });
 
 module.exports = app;
