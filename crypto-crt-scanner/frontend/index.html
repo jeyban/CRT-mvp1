@@ -859,8 +859,32 @@
       renderAll();
     });
 
-    fetchAlerts();
-    setInterval(fetchAlerts, REFRESH_INTERVAL);
+    // ── Smart startup with Render cold-start handling ─────────────────────
+    // Render free tier sleeps after 15min. On wakeup it takes ~30s to boot.
+    // We retry every 10 seconds until we get data, then switch to normal 60s polling.
+    let startupRetries = 0;
+    const MAX_RETRIES  = 12; // try for up to 2 minutes
+
+    async function startupFetch() {
+      const had1H = allAlerts["1h"].length > 0;
+      await fetchAlerts();
+      const has1H = allAlerts["1h"].length > 0;
+
+      if (!has1H && startupRetries < MAX_RETRIES) {
+        // Backend waking up — retry in 10 seconds
+        startupRetries++;
+        const dot = document.getElementById("statusDot");
+        if (dot) dot.title = `Waking up backend... (${startupRetries}/${MAX_RETRIES})`;
+        console.log(`[startup] No data yet, retrying in 10s (${startupRetries}/${MAX_RETRIES})`);
+        setTimeout(startupFetch, 10000);
+      } else {
+        // Data received — switch to normal 60s polling
+        console.log("[startup] Data received, switching to normal 60s polling.");
+        setInterval(fetchAlerts, REFRESH_INTERVAL);
+      }
+    }
+
+    startupFetch();
   </script>
 </body>
 </html>
