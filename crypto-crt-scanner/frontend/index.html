@@ -646,14 +646,24 @@
         const res  = await fetch(API_BASE + "/alerts");
         if (!res.ok) throw new Error("HTTP " + res.status);
         const json = await res.json();
+
+        // ── DEBUG: log full raw response so we can see the data shape ──
+        console.log("[fetchAlerts] Raw response:", JSON.stringify(json, null, 2));
+        console.log("[fetchAlerts] 1h count:", json.data && json.data["1h"] ? json.data["1h"].length : "missing");
+        console.log("[fetchAlerts] 4h count:", json.data && json.data["4h"] ? json.data["4h"].length : "missing");
+        console.log("[fetchAlerts] 1d count:", json.data && json.data["1d"] ? json.data["1d"].length : "missing");
+
         if (json.success) {
           allAlerts = json.data;
           renderAll();
           updateLastRefresh(json.data.lastScan);
           setOnline(true);
+        } else {
+          console.error("[fetchAlerts] success=false:", json);
+          setOnline(false);
         }
       } catch (err) {
-        console.error("fetchAlerts failed:", err.message);
+        console.error("[fetchAlerts] failed:", err.message);
         setOnline(false);
       }
     }
@@ -665,10 +675,18 @@
       const countEl   = document.getElementById("count-" + tf);
       if (!container) return;
 
-      const alerts   = allAlerts[tf] || [];
+      const alerts = allAlerts[tf];
+
+      // Debug: log what we actually received for this timeframe
+      console.log("[renderLog] tf=" + tf + " type=" + typeof alerts + " isArray=" + Array.isArray(alerts) + " length=" + (Array.isArray(alerts) ? alerts.length : "N/A"));
+      if (Array.isArray(alerts) && alerts.length > 0) {
+        console.log("[renderLog] First alert sample:", JSON.stringify(alerts[0]));
+      }
+
+      const safeAlerts = Array.isArray(alerts) ? alerts : [];
       const filtered = searchQuery
-        ? alerts.filter(a => a.symbol.toLowerCase().includes(searchQuery.toLowerCase()))
-        : alerts;
+        ? safeAlerts.filter(a => a && a.symbol && a.symbol.toLowerCase().includes(searchQuery.toLowerCase()))
+        : safeAlerts;
 
       if (countEl) {
         countEl.textContent = filtered.length;
@@ -684,25 +702,36 @@
           </div>`;
         return;
       }
-      container.innerHTML = filtered.map(renderCard).join("");
+
+      // Render each card with its own try/catch so one bad alert can't break all of them
+      const html = filtered.map(function(a, i) {
+        try {
+          return renderCard(a);
+        } catch(e) {
+          console.error("[renderCard] Error on alert #" + i + ":", e.message, a);
+          return '<div style="color:#ff4b6e;padding:8px;font-size:11px">Card error: ' + e.message + '</div>';
+        }
+      }).join("");
+
+      container.innerHTML = html;
     }
 
     function renderCard(a) {
-      // Guard: skip malformed alerts
-      if (!a || !a.symbol || !a.direction) return "";
+      if (!a) return '<div style="color:#ff4b6e;padding:8px;font-size:11px">Null alert</div>';
 
-      const bull = a.direction === "BULLISH";
+      const symbol    = a.symbol    || "UNKNOWN";
+      const direction = a.direction || "BULLISH";
+      const timeframe = a.timeframe || "?";
+      const timestamp = a.timestamp || new Date().toISOString();
+      const bull = direction === "BULLISH";
       const dc   = bull ? "bullish" : "bearish";
-      const time = a.timestamp
-        ? new Date(a.timestamp).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })
-        : "—";
+      const time = new Date(timestamp).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
 
-      // Use <span> instead of <value> — custom tags can be invisible in some browsers
       return `
         <div class="card ${dc}">
           <div class="card-header">
             <div class="card-symbol">
-              <span class="symbol-name">${(a.symbol || "").replace("USDT","")}</span>
+              <span class="symbol-name">${symbol.replace("USDT","")}</span>
               <span class="symbol-pair">/USDT</span>
             </div>
             <div class="card-dir ${dc}">
@@ -753,7 +782,7 @@
             </div>
           </div>
           <div class="card-footer">
-            <span class="tf-badge">${(a.timeframe || "").toUpperCase()}</span>
+            <span class="tf-badge">${timeframe.toUpperCase()}</span>
             <span class="scan-time">Scanned at ${time}</span>
           </div>
         </div>`;
