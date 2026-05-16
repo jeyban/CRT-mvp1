@@ -1,13 +1,14 @@
 /**
  * scheduler.js — Scan Orchestrator + Cron Scheduler
  *
+ * Two scan modes:
+ *   runScan(tf)               — silent background scan (production)
+ *   runScanWithStream(tf, cb) — same logic but fires a callback per step (debug mode)
+ *
  * Scan Schedule:
- *   1H  → Every hour at :15 (e.g. 8:15, 9:15, 10:15...)
+ *   1H  → Every hour at :15
  *   4H  → 1AM, 5AM, 9AM, 1PM, 5PM, 9PM
  *   1D  → 8PM daily
- *
- * The scanner fetches klines + price for each pair,
- * runs CRT logic, and saves results to the in-memory store.
  */
 
 const cron = require("node-cron");
@@ -15,96 +16,129 @@ const { fetchKlines, fetchPrice, USDT_PAIRS } = require("./mexc");
 const { detectCRT } = require("./crtLogic");
 const { setAlerts } = require("../data/store");
 
-// ─── Rate limiting: delay between API calls (ms) ──────────────────────────
-// MEXC has rate limits; space out requests to avoid 429 errors
-const DELAY_MS = 200; // 200ms between each pair = ~20 seconds for 100 pairs
+const DELAY_MS = 200;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// ─── Core scan logic ──────────────────────────────────────────────────────────
+// emit() is optional — if provided, fires debug events to the SSE stream.
+// If null, scan runs silently (production cron mode).
 
-/**
- * Run the full CRT scan for a specific timeframe.
- * Loops through all USDT_PAIRS, fetches data, runs logic.
- *
- * @param {string} tf - "1h", "4h", or "1d"
- */
-async function runScan(tf) {
-  console.log(`\n🔍 [SCAN START] Timeframe: ${tf.toUpperCase()} — ${new Date().toLocaleTimeString()}`);
+async function _scan(tf, emit) {
+  const debug = typeof emit === "function";
+  const log = (type, symbol, msg, extra) => {
+    if (debug) emit({ type, symbol, tf, msg, extra, ts: Date.now() });
+    if (type === "error" || type === "found" || type === "save_error") {
+      console.log(`  [${tf.toUpperCase()}] ${symbol || "—"} — ${msg}`);
+    }
+  };
+
+  log("start", null, `Scan started for ${tf.toUpperCase()}`);
+
   const alerts = [];
   let scanned = 0;
-  let errors = 0;
+  let errors  = 0;
 
   for (const symbol of USDT_PAIRS) {
     try {
-      // Fetch last 3 candles (we need C1 + C2; extra candle for safety)
+      // ── Step 1: announce which coin we're scanning ──────────────────────
+      log("scanning", symbol, `Scanning ${symbol}…`);
+
+      // ── Step 2: fetch candles ───────────────────────────────────────────
+      log("candles", symbol, `Fetching candles…`);
       const candles = await fetchKlines(symbol, tf, 3);
+
       if (!candles || candles.length < 2) {
+        log("skip", symbol, `No candle data — skipping`);
         errors++;
         await sleep(DELAY_MS);
         continue;
       }
 
-      // Fetch live price separately for real-time CRT detection
+      // ── Step 3: fetch live price ────────────────────────────────────────
+      log("price", symbol, `Fetching live price…`);
       const currentPrice = await fetchPrice(symbol);
+
       if (!currentPrice) {
+        log("skip", symbol, `No price data — skipping`);
         errors++;
         await sleep(DELAY_MS);
         continue;
       }
 
-      // Run CRT detection
+      // ── Step 4: run CRT logic ───────────────────────────────────────────
+      log("checking", symbol, `Checking for CRT setup…`);
       const alert = detectCRT(symbol, tf, candles, currentPrice);
 
       if (alert) {
-        alerts.push(alert);
-        console.log(`  ✅ CRT ${alert.direction} → ${symbol} @ ${currentPrice}`);
+        // ── Step 5: CRT found ─────────────────────────────────────────────
+        log("found", symbol,
+          `CRT FOUND → ${symbol} ${alert.direction}`,
+          { direction: alert.direction, price: currentPrice, alert }
+        );
+
+        try {
+          alerts.push(alert);
+          log("saved", symbol, `Result queued ✓`);
+        } catch (saveErr) {
+          log("save_error", symbol,
+            `FAILED TO SAVE RESULT → ${saveErr.message}`
+          );
+        }
+      } else {
+        log("clean", symbol, `No setup found`);
       }
 
       scanned++;
     } catch (err) {
-      console.error(`  ❌ Error scanning ${symbol}: ${err.message}`);
+      // Per-coin error — log it and continue, never stop the scan
+      log("error", symbol, `Error → ${err.message}`);
       errors++;
     }
 
-    // Rate-limit delay between requests
     await sleep(DELAY_MS);
   }
 
-  // Save results to store (replaces previous alerts for this timeframe)
-  setAlerts(tf, alerts);
+  // ── Persist final alert list to store ────────────────────────────────────
+  try {
+    setAlerts(tf, alerts);
+    log("store_saved", null, `Store updated — ${alerts.length} alerts saved`);
+  } catch (storeErr) {
+    log("save_error", null,
+      `FAILED TO SAVE RESULTS TO STORE → ${storeErr.message}`
+    );
+  }
 
-  console.log(`✅ [SCAN DONE] ${tf.toUpperCase()} — ${scanned} scanned, ${alerts.length} alerts, ${errors} errors`);
+  log("done", null,
+    `Scan complete — ${scanned} scanned, ${alerts.length} found, ${errors} errors`,
+    { scanned, found: alerts.length, errors }
+  );
+
   return alerts;
 }
 
-/**
- * Register all cron jobs for scheduled scanning.
- * Call this once at server startup.
- */
-function startScheduler() {
-  console.log("⏰ Registering scan schedules...");
+// ─── Public API ───────────────────────────────────────────────────────────────
 
-  // ── 1H Scanner: every hour at :15 minutes ─────────────────────────────
-  // Cron: "15 * * * *" = at minute 15 of every hour
-  cron.schedule("15 * * * *", () => {
-    runScan("1h").catch(console.error);
-  });
-  console.log("  • 1H scanner: every hour at :15");
-
-  // ── 4H Scanner: 1AM, 5AM, 9AM, 1PM, 5PM, 9PM ─────────────────────────
-  // Cron: "0 1,5,9,13,17,21 * * *" = at minute 0, hours 1,5,9,13,17,21
-  cron.schedule("0 1,5,9,13,17,21 * * *", () => {
-    runScan("4h").catch(console.error);
-  });
-  console.log("  • 4H scanner: 1AM, 5AM, 9AM, 1PM, 5PM, 9PM");
-
-  // ── 1D Scanner: 8PM daily ─────────────────────────────────────────────
-  // Cron: "0 20 * * *" = at 8:00 PM every day
-  cron.schedule("0 20 * * *", () => {
-    runScan("1d").catch(console.error);
-  });
-  console.log("  • 1D scanner: 8PM daily");
-
-  console.log("⏰ All schedules registered.\n");
+/** Silent background scan — used by cron and startup */
+async function runScan(tf) {
+  console.log(`\n🔍 [SCAN START] ${tf.toUpperCase()} — ${new Date().toLocaleTimeString()}`);
+  const results = await _scan(tf, null);
+  console.log(`✅ [SCAN DONE] ${tf.toUpperCase()} — ${results.length} alerts`);
+  return results;
 }
 
-module.exports = { runScan, startScheduler };
+/** Streaming scan — used by the debug SSE endpoint */
+async function runScanWithStream(tf, emit) {
+  return _scan(tf, emit);
+}
+
+// ─── Cron Scheduler ───────────────────────────────────────────────────────────
+
+function startScheduler() {
+  console.log("⏰ Registering scan schedules...");
+  cron.schedule("15 * * * *",          () => runScan("1h").catch(console.error));
+  cron.schedule("0 1,5,9,13,17,21 * * *", () => runScan("4h").catch(console.error));
+  cron.schedule("0 20 * * *",          () => runScan("1d").catch(console.error));
+  console.log("  • 1H at :15 | 4H at 1,5,9,13,17,21 | 1D at 20:00\n");
+}
+
+module.exports = { runScan, runScanWithStream, startScheduler };
