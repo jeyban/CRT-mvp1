@@ -476,31 +476,51 @@
     .legend-dot.bearish { background: var(--red);   }
     .legend-dot.price   { background: var(--blue);  }
 
-    /* ── Stat spans (replaces <value> tag for browser compatibility) ──── */
-    .stat-label {
-      display: block;
-      font-size: 10px;
-      color: var(--text-muted);
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
+    /* ── Debug Terminal ─────────────────────────────────────────────────────── */
+    .debug-bar { display:flex; align-items:center; gap:12px; padding:8px 0 4px; flex-wrap:wrap; }
+    .debug-toggle { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--text-dim); cursor:pointer; user-select:none; padding:6px 12px; border:1px solid var(--border); border-radius:6px; background:var(--bg-panel); transition:all .2s; }
+    .debug-toggle:hover { border-color:var(--blue); color:var(--blue); }
+    .debug-toggle.active { background:rgba(77,159,255,0.1); border-color:var(--blue); color:var(--blue); }
+    .toggle-pill { width:28px; height:16px; border-radius:8px; background:var(--border-h); position:relative; transition:background .2s; flex-shrink:0; }
+    .toggle-pill::after { content:''; width:10px; height:10px; border-radius:50%; background:var(--text-dim); position:absolute; top:3px; left:3px; transition:all .2s; }
+    .debug-toggle.active .toggle-pill { background:var(--blue); }
+    .debug-toggle.active .toggle-pill::after { background:#fff; left:15px; }
+    .debug-info { font-size:11px; color:var(--text-muted); }
 
-    .stat-value {
-      display: block;
-      font-size: 12px;
-      color: var(--text);
-      font-weight: 500;
-    }
+    .panel-wrap { display:flex; flex-direction:column; border-radius:12px; border:1px solid var(--border); overflow:hidden; }
+    .panel-wrap .panel { border-radius:0; border:none; border-bottom:1px solid var(--border); }
 
-    .stat-value.bullish { color: var(--green); }
-    .stat-value.bearish { color: var(--red);   }
+    .debug-terminal { background:#060809; font-family:var(--font-mono); font-size:11px; display:none; flex-direction:column; border-top:2px solid var(--blue); }
+    .debug-terminal.visible { display:flex; }
+    .terminal-header { display:flex; align-items:center; justify-content:space-between; padding:6px 12px; background:#080a0d; border-bottom:1px solid var(--border); }
+    .terminal-title { font-size:10px; color:var(--blue); letter-spacing:1px; text-transform:uppercase; font-weight:700; }
+    .terminal-status { font-size:10px; color:var(--text-muted); }
+    .terminal-status.running { color:var(--green); animation:blink 1s step-end infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .terminal-body { padding:8px 12px; max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:1px; }
+    .terminal-body::-webkit-scrollbar { width:3px; }
+    .terminal-body::-webkit-scrollbar-thumb { background:var(--border-h); }
+
+    .log-line { display:flex; align-items:flex-start; gap:8px; padding:2px 0; line-height:1.5; }
+    .log-ts   { color:var(--text-muted); flex-shrink:0; font-size:10px; margin-top:1px; }
+    .log-sym  { color:#4d6080; flex-shrink:0; font-size:10px; width:70px; margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .log-msg  { color:var(--text-dim); flex:1; }
+
+    .log-line.start      .log-msg, .log-line.done .log-msg { color:var(--blue); font-weight:700; }
+    .log-line.found      .log-msg { color:var(--green); font-weight:700; letter-spacing:.3px; }
+    .log-line.saved      .log-msg, .log-line.store_saved .log-msg { color:#00b37a; }
+    .log-line.error      .log-msg { color:var(--red); }
+    .log-line.save_error .log-msg { color:var(--red); font-weight:700; }
+    .log-line.skip       .log-msg { color:var(--text-muted); }
+    .log-line.clean      .log-msg { color:var(--text-muted); }
+    .log-line.candles    .log-msg, .log-line.price .log-msg, .log-line.checking .log-msg { color:#3d4560; }
   </style>
 </head>
 
 <body>
   <div class="app-wrapper">
 
-    <!-- ── Header ─────────────────────────────────────────────────────── -->
+    <!-- ── Header ─────────────────────────────────────────────────────────── -->
     <header class="app-header">
       <div class="app-logo">
         <div class="logo-icon">⚡</div>
@@ -509,349 +529,454 @@
           <div class="logo-sub">MEXC · Live Anticipation</div>
         </div>
       </div>
-
       <div class="header-meta">
         <div class="status-row">
-          <div class="status-dot offline" id="statusDot" title="Checking..."></div>
-          <span>Backend</span>
+          <div class="status-dot offline" id="statusDot"></div>
+          <span id="dot-label">Connecting…</span>
         </div>
-        <div>
-          Last Scan: <span id="lastRefresh" style="color: var(--text);">—</span>
-        </div>
+        <div>Last Scan: <span id="lastRefresh" style="color:var(--text)">—</span></div>
       </div>
     </header>
 
-    <!-- ── Legend ─────────────────────────────────────────────────────── -->
+    <!-- ── Legend ─────────────────────────────────────────────────────────── -->
     <div class="legend">
-      <div class="legend-item">
-        <div class="legend-dot bullish"></div>
-        <span>Bullish CRT: C2 swept above C1 high → price reclaimed below</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot bearish"></div>
-        <span>Bearish CRT: C2 swept below C1 low → price reclaimed above</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot price"></div>
-        <span>Blue = live price</span>
-      </div>
+      <div class="legend-item"><div class="legend-dot bullish"></div><span>Bullish CRT: C2 swept above C1 high → price reclaimed below</span></div>
+      <div class="legend-item"><div class="legend-dot bearish"></div><span>Bearish CRT: C2 swept below C1 low → price reclaimed above</span></div>
+      <div class="legend-item"><div class="legend-dot price"></div><span>Blue = live price</span></div>
     </div>
 
-    <!-- ── Toolbar ─────────────────────────────────────────────────────── -->
+    <!-- ── Toolbar ─────────────────────────────────────────────────────────── -->
     <div class="toolbar">
       <div class="search-wrapper">
         <span class="search-icon">🔍</span>
-        <input
-          type="text"
-          class="search-input"
-          id="searchInput"
-          placeholder="Search symbol (BTC, ETH…)"
-          autocomplete="off"
-          spellcheck="false"
-        />
+        <input type="text" class="search-input" id="searchInput"
+          placeholder="Search symbol (BTC, ETH…)" autocomplete="off" spellcheck="false"/>
       </div>
-
       <div class="scan-btns">
-        <button class="scan-btn" id="scan-btn-1h" onclick="triggerScan('1h')">
-          Scan 1H
-        </button>
-        <button class="scan-btn" id="scan-btn-4h" onclick="triggerScan('4h')">
-          Scan 4H
-        </button>
-        <button class="scan-btn" id="scan-btn-1d" onclick="triggerScan('1d')">
-          Scan 1D
-        </button>
+        <button class="scan-btn" id="scan-btn-1h" onclick="triggerScan('1h')">Scan 1H</button>
+        <button class="scan-btn" id="scan-btn-4h" onclick="triggerScan('4h')">Scan 4H</button>
+        <button class="scan-btn" id="scan-btn-1d" onclick="triggerScan('1d')">Scan 1D</button>
       </div>
     </div>
 
-    <!-- ── Three Timeframe Panels ──────────────────────────────────────── -->
+    <!-- ── Debug Mode Toggle ───────────────────────────────────────────────── -->
+    <div class="debug-bar">
+      <div class="debug-toggle" id="debugToggle" onclick="toggleDebug()">
+        <div class="toggle-pill"></div>
+        <span>Debug Mode</span>
+      </div>
+      <span class="debug-info" id="debugInfo">Enable to see live scan logs per coin</span>
+    </div>
+
+    <!-- ── Three Timeframe Panels ──────────────────────────────────────────── -->
     <div class="panels">
 
       <!-- 1H Panel -->
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">
-            <div>
+      <div class="panel-wrap">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><div>
               <div class="tf-label">1H</div>
               <div class="tf-desc">HOURLY · :15 SCAN</div>
-            </div>
+            </div></div>
+            <span class="badge badge-empty" id="count-1h">0</span>
           </div>
-          <span class="badge badge-empty" id="count-1h">0</span>
+          <div class="panel-log" id="log-1h">
+            <div class="empty-state"><span class="empty-icon">⏳</span><p>Loading alerts…</p></div>
+          </div>
         </div>
-        <div class="panel-log" id="log-1h">
-          <div class="empty-state">
-            <span class="empty-icon">⏳</span>
-            <p>Loading alerts…</p>
+        <div class="debug-terminal" id="term-1h">
+          <div class="terminal-header">
+            <span class="terminal-title">▌ 1H SCAN LOG</span>
+            <span class="terminal-status" id="term-status-1h">IDLE</span>
           </div>
+          <div class="terminal-body" id="term-body-1h"></div>
         </div>
       </div>
 
       <!-- 4H Panel -->
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">
-            <div>
+      <div class="panel-wrap">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><div>
               <div class="tf-label">4H</div>
               <div class="tf-desc">4-HOUR · 6×/DAY</div>
-            </div>
+            </div></div>
+            <span class="badge badge-empty" id="count-4h">0</span>
           </div>
-          <span class="badge badge-empty" id="count-4h">0</span>
+          <div class="panel-log" id="log-4h">
+            <div class="empty-state"><span class="empty-icon">⏳</span><p>Loading alerts…</p></div>
+          </div>
         </div>
-        <div class="panel-log" id="log-4h">
-          <div class="empty-state">
-            <span class="empty-icon">⏳</span>
-            <p>Loading alerts…</p>
+        <div class="debug-terminal" id="term-4h">
+          <div class="terminal-header">
+            <span class="terminal-title">▌ 4H SCAN LOG</span>
+            <span class="terminal-status" id="term-status-4h">IDLE</span>
           </div>
+          <div class="terminal-body" id="term-body-4h"></div>
         </div>
       </div>
 
       <!-- 1D Panel -->
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">
-            <div>
+      <div class="panel-wrap">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><div>
               <div class="tf-label">1D</div>
               <div class="tf-desc">DAILY · 8PM SCAN</div>
-            </div>
+            </div></div>
+            <span class="badge badge-empty" id="count-1d">0</span>
           </div>
-          <span class="badge badge-empty" id="count-1d">0</span>
+          <div class="panel-log" id="log-1d">
+            <div class="empty-state"><span class="empty-icon">⏳</span><p>Loading alerts…</p></div>
+          </div>
         </div>
-        <div class="panel-log" id="log-1d">
-          <div class="empty-state">
-            <span class="empty-icon">⏳</span>
-            <p>Loading alerts…</p>
+        <div class="debug-terminal" id="term-1d">
+          <div class="terminal-header">
+            <span class="terminal-title">▌ 1D SCAN LOG</span>
+            <span class="terminal-status" id="term-status-1d">IDLE</span>
           </div>
+          <div class="terminal-body" id="term-body-1d"></div>
         </div>
       </div>
 
     </div><!-- /panels -->
   </div><!-- /app-wrapper -->
 
-
   <script>
     // ================================================================
-    // ⚠️  REPLACE THIS URL WITH YOUR RENDER BACKEND URL
-    //     Example: https://crypto-crt-scanner-xxxx.onrender.com/api
+    // CONFIG
     // ================================================================
-    const API_BASE = "https://crt-mvp1.onrender.com/api";
+    var API = "https://crt-mvp1.onrender.com/api";
+
+    // debugMode: when true, scan buttons use SSE streaming endpoint
+    // and show live logs in the terminal panel below each timeframe.
+    // When false, scans run silently (production mode).
+    var debugMode = false;
+
     // ================================================================
+    // STATE
+    // ================================================================
+    var allAlerts = { "1h": [], "4h": [], "1d": [] };
+    var searchQuery = "";
+    var scanning = { "1h": false, "4h": false, "1d": false };
+    var activeStreams = {}; // holds active EventSource per tf
+    var retries = 0;
+    var MAX_RETRIES = 18;
 
-    const REFRESH_INTERVAL = 60000;
-    let allAlerts = { "1h": [], "4h": [], "1d": [] };
-    let searchQuery = "";
-    let isScanning  = { "1h": false, "4h": false, "1d": false };
+    // ================================================================
+    // DEBUG TOGGLE
+    // ================================================================
+    function toggleDebug() {
+      debugMode = !debugMode;
+      var toggle = document.getElementById("debugToggle");
+      var info   = document.getElementById("debugInfo");
+      if (toggle) toggle.className = "debug-toggle" + (debugMode ? " active" : "");
+      if (info)   info.textContent = debugMode
+        ? "Debug ON — scan buttons will stream live logs below each panel"
+        : "Enable to see live scan logs per coin";
 
-    async function fetchAlerts() {
-      try {
-        const res  = await fetch(API_BASE + "/alerts");
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const json = await res.json();
-
-        // ── DEBUG: log full raw response so we can see the data shape ──
-        console.log("[fetchAlerts] Raw response:", JSON.stringify(json, null, 2));
-        console.log("[fetchAlerts] 1h count:", json.data && json.data["1h"] ? json.data["1h"].length : "missing");
-        console.log("[fetchAlerts] 4h count:", json.data && json.data["4h"] ? json.data["4h"].length : "missing");
-        console.log("[fetchAlerts] 1d count:", json.data && json.data["1d"] ? json.data["1d"].length : "missing");
-
-        if (json.success) {
-          allAlerts = json.data;
-          renderAll();
-          updateLastRefresh(json.data.lastScan);
-          setOnline(true);
-        } else {
-          console.error("[fetchAlerts] success=false:", json);
-          setOnline(false);
-        }
-      } catch (err) {
-        console.error("[fetchAlerts] failed:", err.message);
-        setOnline(false);
-      }
-    }
-
-    function renderAll() { renderLog("1h"); renderLog("4h"); renderLog("1d"); }
-
-    function renderLog(tf) {
-      const container = document.getElementById("log-" + tf);
-      const countEl   = document.getElementById("count-" + tf);
-      if (!container) return;
-
-      const alerts = allAlerts[tf];
-
-      // Debug: log what we actually received for this timeframe
-      console.log("[renderLog] tf=" + tf + " type=" + typeof alerts + " isArray=" + Array.isArray(alerts) + " length=" + (Array.isArray(alerts) ? alerts.length : "N/A"));
-      if (Array.isArray(alerts) && alerts.length > 0) {
-        console.log("[renderLog] First alert sample:", JSON.stringify(alerts[0]));
-      }
-
-      const safeAlerts = Array.isArray(alerts) ? alerts : [];
-      const filtered = searchQuery
-        ? safeAlerts.filter(a => a && a.symbol && a.symbol.toLowerCase().includes(searchQuery.toLowerCase()))
-        : safeAlerts;
-
-      if (countEl) {
-        countEl.textContent = filtered.length;
-        countEl.className   = filtered.length > 0 ? "badge badge-active" : "badge badge-empty";
-      }
-
-      if (filtered.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state">
-            <span class="empty-icon">📭</span>
-            <p>${searchQuery ? "No results match your search." : "No CRT setups detected yet."}</p>
-            <small>Trigger a manual scan above or wait for the scheduled scan.</small>
-          </div>`;
-        return;
-      }
-
-      // Render each card with its own try/catch so one bad alert can't break all of them
-      const html = filtered.map(function(a, i) {
-        try {
-          return renderCard(a);
-        } catch(e) {
-          console.error("[renderCard] Error on alert #" + i + ":", e.message, a);
-          return '<div style="color:#ff4b6e;padding:8px;font-size:11px">Card error: ' + e.message + '</div>';
-        }
-      }).join("");
-
-      container.innerHTML = html;
-    }
-
-    function renderCard(a) {
-      if (!a) return '<div style="color:#ff4b6e;padding:8px;font-size:11px">Null alert</div>';
-
-      const symbol    = a.symbol    || "UNKNOWN";
-      const direction = a.direction || "BULLISH";
-      const timeframe = a.timeframe || "?";
-      const timestamp = a.timestamp || new Date().toISOString();
-      const bull = direction === "BULLISH";
-      const dc   = bull ? "bullish" : "bearish";
-      const time = new Date(timestamp).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
-
-      return `
-        <div class="card ${dc}">
-          <div class="card-header">
-            <div class="card-symbol">
-              <span class="symbol-name">${symbol.replace("USDT","")}</span>
-              <span class="symbol-pair">/USDT</span>
-            </div>
-            <div class="card-dir ${dc}">
-              <span class="dir-icon">${bull ? "▲" : "▼"}</span>
-              ${bull ? "Bullish CRT" : "Bearish CRT"}
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="stat-row">
-              <div class="stat">
-                <span class="stat-label">Current Price</span>
-                <span class="stat-value price-live">$${fmt(a.currentPrice)}</span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">${bull ? "Swept Above" : "Swept Below"}</span>
-                <span class="stat-value">$${bull ? fmt(a.c1High) : fmt(a.c1Low)}</span>
-              </div>
-            </div>
-            <div class="stat-row">
-              <div class="stat">
-                <span class="stat-label">C1 High</span>
-                <span class="stat-value">$${fmt(a.c1High)}</span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">C1 Low</span>
-                <span class="stat-value">$${fmt(a.c1Low)}</span>
-              </div>
-            </div>
-            <div class="stat-row">
-              <div class="stat">
-                <span class="stat-label">C2 High</span>
-                <span class="stat-value">$${fmt(a.c2High)}</span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">C2 Low</span>
-                <span class="stat-value">$${fmt(a.c2Low)}</span>
-              </div>
-            </div>
-            <div class="stat-row">
-              <div class="stat">
-                <span class="stat-label">Reclaim %</span>
-                <span class="stat-value ${dc}">${a.reclaimPercent || "—"}%</span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">Now</span>
-                <span class="stat-value">${bull ? "Below C1 High" : "Above C1 Low"}</span>
-              </div>
-            </div>
-          </div>
-          <div class="card-footer">
-            <span class="tf-badge">${timeframe.toUpperCase()}</span>
-            <span class="scan-time">Scanned at ${time}</span>
-          </div>
-        </div>`;
-    }
-
-    function fmt(n) {
-      if (n === undefined || n === null || isNaN(n)) return "—";
-      if (n < 0.01) return Number(n).toFixed(6);
-      if (n < 1)    return Number(n).toFixed(4);
-      if (n < 100)  return Number(n).toFixed(3);
-      return Number(n).toFixed(2);
-    }
-
-    function triggerScan(tf) {
-      if (isScanning[tf]) return;
-      const btn = document.getElementById("scan-btn-" + tf);
-      isScanning[tf] = true;
-      if (btn) { btn.disabled = true; btn.textContent = "Scanning…"; }
-
-      console.log("POST → " + API_BASE + "/scan/" + tf);
-
-      fetch(API_BASE + "/scan/" + tf, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      })
-      .then(r => r.json())
-      .then(json => {
-        if (json.success) {
-          showToast("✅ " + tf.toUpperCase() + " scan started! Results in ~30s.");
-          setTimeout(fetchAlerts, 35000);
-        } else {
-          showToast("⚠️ " + (json.error || "Unknown error"), true);
-        }
-      })
-      .catch(err => {
-        console.error("Scan failed:", err.message);
-        showToast("❌ Cannot reach backend.", true);
-      })
-      .finally(() => {
-        setTimeout(() => {
-          isScanning[tf] = false;
-          if (btn) { btn.disabled = false; btn.textContent = "Scan " + tf.toUpperCase(); }
-        }, 40000);
+      // Show or hide all terminals
+      ["1h","4h","1d"].forEach(function(tf) {
+        var term = document.getElementById("term-" + tf);
+        if (term) term.className = "debug-terminal" + (debugMode ? " visible" : "");
       });
     }
 
+    // ================================================================
+    // FETCH ALERTS (normal polling)
+    // ================================================================
+    function fetchAlerts() {
+      fetch(API + "/alerts")
+        .then(function(r) {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        })
+        .then(function(j) {
+          if (!j.success) throw new Error("success=false");
+          allAlerts = j.data;
+          retries = 0;
+          setOnline(true);
+          renderAll();
+          updateLastRefresh(j.data.lastScan);
+        })
+        .catch(function(e) {
+          console.error("[fetch]", e.message);
+          setOnline(false);
+          if (retries < MAX_RETRIES) {
+            retries++;
+            setTimeout(fetchAlerts, 10000);
+          }
+        });
+    }
+
+    // ================================================================
+    // RENDER
+    // ================================================================
+    function renderAll() { renderLog("1h"); renderLog("4h"); renderLog("1d"); }
+
+    function renderLog(tf) {
+      var log    = document.getElementById("log-" + tf);
+      var ct     = document.getElementById("count-" + tf);
+      if (!log) return;
+
+      var alerts   = allAlerts[tf] || [];
+      var filtered = searchQuery
+        ? alerts.filter(function(a){ return a.symbol && a.symbol.toLowerCase().indexOf(searchQuery.toLowerCase()) !== -1; })
+        : alerts;
+
+      if (ct) {
+        ct.textContent = filtered.length;
+        ct.className   = filtered.length > 0 ? "badge badge-active" : "badge badge-empty";
+      }
+
+      if (filtered.length === 0) {
+        log.innerHTML = '<div class="empty-state"><span class="empty-icon">📭</span>' +
+          '<p>' + (searchQuery ? "No results match your search." : "No CRT setups detected yet.") + '</p>' +
+          '<small>Trigger a scan above or wait for the schedule.</small></div>';
+        return;
+      }
+
+      log.innerHTML = filtered.map(function(a) {
+        try { return renderCard(a); }
+        catch(e) { return '<div style="color:var(--red);padding:8px;font-size:11px">Card error: ' + e.message + '</div>'; }
+      }).join("");
+    }
+
+    function renderCard(a) {
+      var bull = (a.direction || "").toUpperCase() === "BULLISH";
+      var dc   = bull ? "bullish" : "bearish";
+      var sym  = (a.symbol || "?").replace("USDT", "");
+      var time = a.timestamp ? new Date(a.timestamp).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "—";
+
+      return '<div class="card ' + dc + '">' +
+        '<div class="card-header">' +
+          '<div class="card-symbol"><span class="symbol-name">' + sym + '</span><span class="symbol-pair">/USDT</span></div>' +
+          '<div class="card-dir ' + dc + '"><span class="dir-icon">' + (bull?"▲":"▼") + '</span>' + (bull?"Bullish CRT":"Bearish CRT") + '</div>' +
+        '</div>' +
+        '<div class="card-body">' +
+          srow("Current Price", '<span class="stat-value price-live">$' + fmt(a.currentPrice) + '</span>', bull?"Swept Above":"Swept Below", '$' + fmt(bull?a.c1High:a.c1Low)) +
+          srow("C1 High", '$'+fmt(a.c1High), "C1 Low", '$'+fmt(a.c1Low)) +
+          srow("C2 High", '$'+fmt(a.c2High), "C2 Low", '$'+fmt(a.c2Low)) +
+          srow("Reclaim %", '<span class="stat-value ' + dc + '">' + (a.reclaimPercent||"—") + '%</span>', "Now", bull?"Below C1 High":"Above C1 Low") +
+        '</div>' +
+        '<div class="card-footer"><span class="tf-badge">' + (a.timeframe||"").toUpperCase() + '</span><span class="scan-time">Scanned at ' + time + '</span></div>' +
+      '</div>';
+    }
+
+    function srow(l1,v1,l2,v2) {
+      return '<div class="stat-row">' +
+        '<div class="stat"><span class="stat-label">' + l1 + '</span><span class="stat-value">' + v1 + '</span></div>' +
+        '<div class="stat"><span class="stat-label">' + l2 + '</span><span class="stat-value">' + v2 + '</span></div>' +
+      '</div>';
+    }
+
+    function fmt(n) {
+      n = parseFloat(n);
+      if (isNaN(n)) return "—";
+      if (n < 0.01) return n.toFixed(6);
+      if (n < 1)    return n.toFixed(4);
+      if (n < 100)  return n.toFixed(3);
+      return n.toFixed(2);
+    }
+
+    // ================================================================
+    // SCAN TRIGGER — routes to debug or silent depending on debugMode
+    // ================================================================
+    function triggerScan(tf) {
+      if (scanning[tf]) return;
+      if (debugMode) {
+        triggerScanDebug(tf);
+      } else {
+        triggerScanSilent(tf);
+      }
+    }
+
+    // ── Silent scan (production) ──────────────────────────────────────────────
+    function triggerScanSilent(tf) {
+      var btn = document.getElementById("scan-btn-" + tf);
+      scanning[tf] = true;
+      if (btn) { btn.disabled = true; btn.textContent = "Scanning…"; }
+
+      fetch(API + "/scan/" + tf, { method:"POST", headers:{"Content-Type":"application/json"} })
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if (j.success) {
+            showToast("✅ " + tf.toUpperCase() + " scan started — results in ~30s");
+            setTimeout(fetchAlerts, 35000);
+          } else {
+            showToast("⚠️ " + (j.error||"error"), true);
+          }
+        })
+        .catch(function(e){ showToast("❌ " + e.message, true); })
+        .finally(function(){
+          setTimeout(function(){
+            scanning[tf] = false;
+            if (btn) { btn.disabled = false; btn.textContent = "Scan " + tf.toUpperCase(); }
+          }, 40000);
+        });
+    }
+
+    // ── Debug scan (SSE streaming) ────────────────────────────────────────────
+    function triggerScanDebug(tf) {
+      var btn      = document.getElementById("scan-btn-" + tf);
+      var termBody = document.getElementById("term-body-" + tf);
+      var termStat = document.getElementById("term-status-" + tf);
+
+      // Close any existing stream for this tf
+      if (activeStreams[tf]) {
+        activeStreams[tf].close();
+        delete activeStreams[tf];
+      }
+
+      scanning[tf] = true;
+      if (btn)      { btn.disabled = true; btn.textContent = "Scanning…"; }
+      if (termBody) termBody.innerHTML = ""; // clear old logs
+      if (termStat) { termStat.textContent = "● RUNNING"; termStat.className = "terminal-status running"; }
+
+      // Open SSE connection to the streaming scan endpoint
+      var es = new EventSource(API + "/scan/" + tf + "/stream");
+      activeStreams[tf] = es;
+
+      es.onmessage = function(e) {
+        var event;
+        try { event = JSON.parse(e.data); }
+        catch(_) { return; }
+
+        // Append log line to terminal
+        appendLog(tf, event);
+
+        // If a CRT was found, immediately push it to the results panel
+        if (event.type === "found" && event.extra && event.extra.alert) {
+          injectAlert(tf, event.extra.alert);
+        }
+
+        // On scan done — re-fetch full alerts to sync store, reset UI
+        if (event.type === "done") {
+          if (termStat) { termStat.textContent = "✓ DONE"; termStat.className = "terminal-status"; }
+          scanning[tf] = false;
+          if (btn) { btn.disabled = false; btn.textContent = "Scan " + tf.toUpperCase(); }
+          setTimeout(fetchAlerts, 1000); // small delay to let store settle
+          es.close();
+          delete activeStreams[tf];
+        }
+
+        // On fatal error
+        if (event.type === "fatal") {
+          if (termStat) { termStat.textContent = "✗ ERROR"; termStat.className = "terminal-status"; }
+          scanning[tf] = false;
+          if (btn) { btn.disabled = false; btn.textContent = "Scan " + tf.toUpperCase(); }
+          es.close();
+          delete activeStreams[tf];
+        }
+      };
+
+      es.onerror = function() {
+        appendLog(tf, { type: "error", symbol: null, msg: "Stream connection lost", ts: Date.now() });
+        if (termStat) { termStat.textContent = "✗ LOST"; termStat.className = "terminal-status"; }
+        scanning[tf] = false;
+        if (btn) { btn.disabled = false; btn.textContent = "Scan " + tf.toUpperCase(); }
+        es.close();
+        delete activeStreams[tf];
+      };
+    }
+
+    // ── Append one log line to a terminal body ────────────────────────────────
+    function appendLog(tf, event) {
+      var body = document.getElementById("term-body-" + tf);
+      if (!body) return;
+
+      var icons = {
+        start:       "▶",
+        scanning:    "◈",
+        candles:     "·",
+        price:       "·",
+        checking:    "·",
+        found:       "★",
+        saved:       "✓",
+        clean:       "–",
+        skip:        "⊘",
+        error:       "✗",
+        save_error:  "✗",
+        done:        "■",
+        store_saved: "✓",
+        fatal:       "✗",
+      };
+
+      var ts   = new Date(event.ts || Date.now()).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+      var icon = icons[event.type] || "·";
+      var sym  = event.symbol || "";
+
+      var line = document.createElement("div");
+      line.className = "log-line " + (event.type || "");
+      line.innerHTML =
+        '<span class="log-ts">' + ts + '</span>' +
+        '<span class="log-sym">' + sym + '</span>' +
+        '<span class="log-msg">' + (event.msg || "") + '</span>';
+
+      body.appendChild(line);
+
+      // Auto-scroll to bottom
+      body.scrollTop = body.scrollHeight;
+    }
+
+    // ── Inject a single found alert into the results panel immediately ────────
+    function injectAlert(tf, alert) {
+      var log = document.getElementById("log-" + tf);
+      var ct  = document.getElementById("count-" + tf);
+      if (!log) return;
+
+      // Remove empty state if present
+      var empty = log.querySelector(".empty-state");
+      if (empty) empty.remove();
+
+      // Add alert card at the top
+      var tmp = document.createElement("div");
+      try { tmp.innerHTML = renderCard(alert); }
+      catch(e) { return; }
+
+      var card = tmp.firstElementChild;
+      if (card) {
+        // Highlight: flash green border briefly
+        card.style.boxShadow = "0 0 12px rgba(0,229,160,0.4)";
+        setTimeout(function(){ card.style.boxShadow = ""; }, 2000);
+        log.insertBefore(card, log.firstChild);
+      }
+
+      // Update allAlerts state and count badge
+      if (!allAlerts[tf]) allAlerts[tf] = [];
+      allAlerts[tf].unshift(alert);
+      if (ct) {
+        ct.textContent = allAlerts[tf].length;
+        ct.className = "badge badge-active";
+      }
+    }
+
+    // ================================================================
+    // UI HELPERS
+    // ================================================================
+    function setOnline(ok) {
+      var dot   = document.getElementById("statusDot");
+      var label = document.getElementById("dot-label");
+      if (dot)   dot.className = "status-dot " + (ok ? "online" : "offline");
+      if (label) label.textContent = ok ? "Backend Online" : "Backend Offline";
+    }
+
     function updateLastRefresh(lastScan) {
-      const el    = document.getElementById("lastRefresh");
-      const times = Object.values(lastScan || {}).filter(Boolean);
+      var el    = document.getElementById("lastRefresh");
+      var times = Object.values(lastScan || {}).filter(Boolean);
       if (el) el.textContent = times.length
         ? new Date(times.sort().reverse()[0]).toLocaleTimeString()
         : "Never";
     }
 
-    function setOnline(online) {
-      const dot = document.getElementById("statusDot");
-      if (dot) dot.className = "status-dot " + (online ? "online" : "offline");
-    }
-
-    function showToast(msg, isError) {
-      const t = document.createElement("div");
-      t.className   = "toast " + (isError ? "toast-error" : "toast-success");
+    function showToast(msg, isErr) {
+      var t = document.createElement("div");
+      t.className   = "toast " + (isErr ? "toast-error" : "toast-success");
       t.textContent = msg;
       document.body.appendChild(t);
-      setTimeout(() => t.classList.add("toast-visible"), 10);
-      setTimeout(() => {
-        t.classList.remove("toast-visible");
-        setTimeout(() => t.remove(), 400);
-      }, 3500);
+      setTimeout(function(){ t.classList.add("toast-visible"); }, 10);
+      setTimeout(function(){ t.classList.remove("toast-visible"); setTimeout(function(){ t.remove(); }, 400); }, 3500);
     }
 
     document.getElementById("searchInput").addEventListener("input", function(e) {
@@ -859,32 +984,11 @@
       renderAll();
     });
 
-    // ── Smart startup with Render cold-start handling ─────────────────────
-    // Render free tier sleeps after 15min. On wakeup it takes ~30s to boot.
-    // We retry every 10 seconds until we get data, then switch to normal 60s polling.
-    let startupRetries = 0;
-    const MAX_RETRIES  = 12; // try for up to 2 minutes
-
-    async function startupFetch() {
-      const had1H = allAlerts["1h"].length > 0;
-      await fetchAlerts();
-      const has1H = allAlerts["1h"].length > 0;
-
-      if (!has1H && startupRetries < MAX_RETRIES) {
-        // Backend waking up — retry in 10 seconds
-        startupRetries++;
-        const dot = document.getElementById("statusDot");
-        if (dot) dot.title = `Waking up backend... (${startupRetries}/${MAX_RETRIES})`;
-        console.log(`[startup] No data yet, retrying in 10s (${startupRetries}/${MAX_RETRIES})`);
-        setTimeout(startupFetch, 10000);
-      } else {
-        // Data received — switch to normal 60s polling
-        console.log("[startup] Data received, switching to normal 60s polling.");
-        setInterval(fetchAlerts, REFRESH_INTERVAL);
-      }
-    }
-
-    startupFetch();
+    // ================================================================
+    // BOOT
+    // ================================================================
+    fetchAlerts();
+    setInterval(fetchAlerts, 60000);
   </script>
 </body>
 </html>
