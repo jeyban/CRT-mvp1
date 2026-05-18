@@ -1,96 +1,88 @@
 /**
- * scheduler.js — Scan Orchestrator + Cron Scheduler
+ * scheduler.js — Scan Orchestrator
  *
- * Two scan modes:
- *   runScan(tf)               — silent background scan (production)
- *   runScanWithStream(tf, cb) — same logic but fires a callback per step (debug mode)
+ * Timeframes: 4H and 1D only (1H removed)
  *
- * Scan Schedule:
- *   1H  → Every hour at :15
- *   4H  → 1AM, 5AM, 9AM, 1PM, 5PM, 9PM
- *   1D  → 8PM daily
+ * Schedule:
+ *   4H → 1AM, 5AM, 9AM, 1PM, 5PM, 9PM UTC
+ *   1D → 8PM UTC daily
  */
 
 const cron = require("node-cron");
-const { fetchKlines, fetchPrice, USDT_PAIRS } = require("./mexc");
+const { fetchKlines, fetchPrice, getPairs } = require("./mexc");
 const { detectCRT } = require("./crtLogic");
 const { setAlerts } = require("../data/store");
 
-const DELAY_MS = 200;
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const DELAY_MS = 180; // ms between each pair to stay under rate limits
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-// ─── Core scan logic ──────────────────────────────────────────────────────────
-// emit() is optional — if provided, fires debug events to the SSE stream.
-// If null, scan runs silently (production cron mode).
-
+/**
+ * Core scan loop — shared by both silent and streaming modes.
+ * @param {string}   tf    - "4h" or "1d"
+ * @param {Function} emit  - optional callback for debug streaming
+ */
 async function _scan(tf, emit) {
   const debug = typeof emit === "function";
   const log = (type, symbol, msg, extra) => {
     if (debug) emit({ type, symbol, tf, msg, extra, ts: Date.now() });
-    if (type === "error" || type === "found" || type === "save_error") {
+    if (["found","error","save_error","start","done"].includes(type)) {
       console.log(`  [${tf.toUpperCase()}] ${symbol || "—"} — ${msg}`);
     }
   };
 
-  log("start", null, `Scan started for ${tf.toUpperCase()}`);
+  log("start", null, `Scan started — ${tf.toUpperCase()}`);
 
+  // Dynamically fetch all active perpetual pairs
+  const pairs  = await getPairs();
   const alerts = [];
-  let scanned = 0;
-  let errors  = 0;
+  let scanned  = 0;
+  let errors   = 0;
 
-  for (const symbol of USDT_PAIRS) {
+  log("start", null, `Scanning ${pairs.length} perpetual pairs…`);
+
+  for (const symbol of pairs) {
     try {
-      // ── Step 1: announce which coin we're scanning ──────────────────────
       log("scanning", symbol, `Scanning ${symbol}…`);
-
-      // ── Step 2: fetch candles ───────────────────────────────────────────
-      log("candles", symbol, `Fetching candles…`);
+      log("candles",  symbol, `Fetching candles…`);
       const candles = await fetchKlines(symbol, tf, 3);
 
       if (!candles || candles.length < 2) {
-        log("skip", symbol, `No candle data — skipping`);
+        log("skip", symbol, `No candle data`);
         errors++;
         await sleep(DELAY_MS);
         continue;
       }
 
-      // ── Step 3: fetch live price ────────────────────────────────────────
-      log("price", symbol, `Fetching live price…`);
-      const currentPrice = await fetchPrice(symbol);
+      log("price",    symbol, `Fetching live price…`);
+      const price = await fetchPrice(symbol);
 
-      if (!currentPrice) {
-        log("skip", symbol, `No price data — skipping`);
+      if (!price) {
+        log("skip", symbol, `No price data`);
         errors++;
         await sleep(DELAY_MS);
         continue;
       }
 
-      // ── Step 4: run CRT logic ───────────────────────────────────────────
-      log("checking", symbol, `Checking for CRT setup…`);
-      const alert = detectCRT(symbol, tf, candles, currentPrice);
+      log("checking", symbol, `Checking CRT setup…`);
+      const alert = detectCRT(symbol, tf, candles, price);
 
       if (alert) {
-        // ── Step 5: CRT found ─────────────────────────────────────────────
         log("found", symbol,
           `CRT FOUND → ${symbol} ${alert.direction}`,
-          { direction: alert.direction, price: currentPrice, alert }
+          { direction: alert.direction, price, alert }
         );
-
         try {
           alerts.push(alert);
-          log("saved", symbol, `Result queued ✓`);
+          log("saved", symbol, `Queued ✓`);
         } catch (saveErr) {
-          log("save_error", symbol,
-            `FAILED TO SAVE RESULT → ${saveErr.message}`
-          );
+          log("save_error", symbol, `FAILED TO SAVE RESULT → ${saveErr.message}`);
         }
       } else {
-        log("clean", symbol, `No setup found`);
+        log("clean", symbol, `No setup`);
       }
 
       scanned++;
     } catch (err) {
-      // Per-coin error — log it and continue, never stop the scan
       log("error", symbol, `Error → ${err.message}`);
       errors++;
     }
@@ -98,14 +90,12 @@ async function _scan(tf, emit) {
     await sleep(DELAY_MS);
   }
 
-  // ── Persist final alert list to store ────────────────────────────────────
+  // Persist to Supabase
   try {
-    setAlerts(tf, alerts);
-    log("store_saved", null, `Store updated — ${alerts.length} alerts saved`);
+    await setAlerts(tf, alerts);
+    log("store_saved", null, `Saved ${alerts.length} alerts to database`);
   } catch (storeErr) {
-    log("save_error", null,
-      `FAILED TO SAVE RESULTS TO STORE → ${storeErr.message}`
-    );
+    log("save_error", null, `FAILED TO SAVE TO DB → ${storeErr.message}`);
   }
 
   log("done", null,
@@ -116,29 +106,37 @@ async function _scan(tf, emit) {
   return alerts;
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+// ── Public functions ──────────────────────────────────────────────────────────
 
-/** Silent background scan — used by cron and startup */
+/** Silent background scan */
 async function runScan(tf) {
   console.log(`\n🔍 [SCAN START] ${tf.toUpperCase()} — ${new Date().toLocaleTimeString()}`);
   const results = await _scan(tf, null);
-  console.log(`✅ [SCAN DONE] ${tf.toUpperCase()} — ${results.length} alerts`);
+  console.log(`✅ [SCAN DONE] ${tf.toUpperCase()} — ${results.length} alerts found`);
   return results;
 }
 
-/** Streaming scan — used by the debug SSE endpoint */
+/** Streaming scan for debug mode */
 async function runScanWithStream(tf, emit) {
   return _scan(tf, emit);
 }
 
-// ─── Cron Scheduler ───────────────────────────────────────────────────────────
+// ── Cron Scheduler ────────────────────────────────────────────────────────────
 
 function startScheduler() {
-  console.log("⏰ Registering scan schedules...");
-  cron.schedule("15 * * * *",          () => runScan("1h").catch(console.error));
-  cron.schedule("0 1,5,9,13,17,21 * * *", () => runScan("4h").catch(console.error));
-  cron.schedule("0 20 * * *",          () => runScan("1d").catch(console.error));
-  console.log("  • 1H at :15 | 4H at 1,5,9,13,17,21 | 1D at 20:00\n");
+  console.log("⏰ Registering scan schedules (4H + 1D only)...");
+
+  // 4H: at 1AM, 5AM, 9AM, 1PM, 5PM, 9PM UTC
+  cron.schedule("0 1,5,9,13,17,21 * * *", () => {
+    runScan("4h").catch(console.error);
+  }, { timezone: "UTC" });
+  console.log("  • 4H: 1AM, 5AM, 9AM, 1PM, 5PM, 9PM UTC");
+
+  // 1D: 8PM UTC
+  cron.schedule("0 20 * * *", () => {
+    runScan("1d").catch(console.error);
+  }, { timezone: "UTC" });
+  console.log("  • 1D: 8PM UTC daily\n");
 }
 
 module.exports = { runScan, runScanWithStream, startScheduler };
