@@ -1,33 +1,34 @@
 /**
- * mexc.js — MEXC Perpetual Futures API
+ * mexc.js — MEXC Perpetual Futures Contract API
  *
- * Uses the MEXC contract API (contract.mexc.com) instead of spot.
- * Perpetual futures symbols use underscore format: BTC_USDT
+ * Base URL : https://contract.mexc.com/api/v1/contract
  *
- * Kline endpoint:  GET https://contract.mexc.com/api/v1/contract/kline/{symbol}
- * Price endpoint:  GET https://contract.mexc.com/api/v1/contract/ticker
- * Pairs endpoint:  GET https://contract.mexc.com/api/v1/contract/detail
+ * Confirmed from official docs (mexcdevelop.github.io/apidocs/contract_v1_en):
+ *
+ *   Kline  : GET /kline/{symbol}?interval=Hour4&start=<sec>&end=<sec>
+ *   Ticker : GET /ticker?symbol={symbol}  → data.lastPrice
+ *   Pairs  : GET /detail → data[] filtered by quoteCoin=USDT, state=0
+ *
+ * Interval strings: Min1 Min5 Min15 Min30 Min60 Hour4 Hour8 Day1 Week1 Month1
  */
 
 const axios = require("axios");
 
 const BASE = "https://contract.mexc.com/api/v1/contract";
 
-// ── Interval map: our labels → MEXC contract interval strings ────────────────
-// Contract API uses: Min1, Min5, Min15, Min30, Min60, Hour4, Hour8, Day1, Week1, Month1
 const INTERVAL_MAP = {
   "4h": "Hour4",
   "1d": "Day1",
 };
 
-// ── Cached pair list (refreshed every 6 hours) ───────────────────────────────
+// ── Pair cache ────────────────────────────────────────────────────────────────
 let cachedPairs   = [];
 let lastPairFetch = 0;
-const PAIR_TTL    = 6 * 60 * 60 * 1000; // 6 hours
+const PAIR_TTL    = 6 * 60 * 60 * 1000; // refresh every 6 hours
 
 /**
- * Fetch all active USDT perpetual pairs from MEXC dynamically.
- * Falls back to a hardcoded list if the API fails.
+ * Fetch all active USDT perpetual pairs from MEXC.
+ * Falls back to hardcoded list if API call fails.
  */
 async function getPairs() {
   const now = Date.now();
@@ -36,59 +37,71 @@ async function getPairs() {
   }
 
   try {
-    const res = await axios.get(`${BASE}/detail`, { timeout: 10000 });
-    const all = res.data && res.data.data ? res.data.data : [];
+    const res  = await axios.get(`${BASE}/detail`, { timeout: 10000 });
+    const list = res.data && res.data.data ? res.data.data : [];
 
-    // Filter: only active USDT-settled perpetual contracts
-    // state: 0 = enabled, quoteCoin: USDT
-    const pairs = all
+    // state=0 means enabled; quoteCoin=USDT; apiAllowed is not required for market data
+    const pairs = list
       .filter(c => c.quoteCoin === "USDT" && c.state === 0)
-      .map(c => c.symbol) // format: BTC_USDT
+      .map(c => c.symbol)
       .sort();
 
-    if (pairs.length > 50) {
+    if (pairs.length >= 50) {
       cachedPairs   = pairs;
       lastPairFetch = now;
-      console.log(`[MEXC] Loaded ${pairs.length} active USDT perpetual pairs`);
-      return pairs;
+      console.log(`[MEXC] Fetched ${pairs.length} active USDT perpetual pairs`);
+      return cachedPairs;
     }
+
+    console.warn("[MEXC] Pair list too short, using fallback");
   } catch (err) {
-    console.error("[MEXC] Failed to fetch pair list:", err.message);
+    console.error("[MEXC] getPairs error:", err.message);
   }
 
-  // Fallback: hardcoded top perpetual pairs
-  console.log("[MEXC] Using fallback pair list");
-  cachedPairs = FALLBACK_PAIRS;
+  cachedPairs   = FALLBACK_PAIRS;
   lastPairFetch = now;
   return cachedPairs;
 }
 
 /**
- * Fetch last N klines for a perpetual futures symbol + timeframe.
+ * Fetch the last `limit` klines for a symbol + timeframe.
  *
- * @param {string} symbol  - e.g. "BTC_USDT"
- * @param {string} tf      - "4h" or "1d"
- * @param {number} limit   - number of candles (default 3)
+ * From the docs:
+ *   "If neither start nor end time is provided, the 2000 pieces of data
+ *    closest to the current time are queried."
+ * So we CAN omit start/end and just pass a small limit via the response size.
+ * But the API doesn't have a direct `limit` param — it uses time range.
+ * We pass `end = now` and `start = now - (limit * intervalSeconds)` to get
+ * exactly the candles we need.
  */
 async function fetchKlines(symbol, tf, limit = 3) {
   const interval = INTERVAL_MAP[tf];
   if (!interval) throw new Error(`Unknown timeframe: ${tf}`);
 
+  // Calculate start/end in seconds
+  const intervalSeconds = tf === "4h" ? 4 * 3600 : 24 * 3600;
+  const end   = Math.floor(Date.now() / 1000);
+  const start = end - (limit + 2) * intervalSeconds; // +2 buffer
+
   try {
     const res = await axios.get(`${BASE}/kline/${symbol}`, {
-      params: { interval, start: 0, end: 0 },
+      params: { interval, start, end },
       timeout: 8000,
     });
 
     const d = res.data && res.data.data;
-    if (!d || !d.time || d.time.length === 0) return null;
 
-    // Contract kline format: arrays of time[], open[], close[], high[], low[], vol[]
-    const len = d.time.length;
-    // Take last `limit` candles
-    const start = Math.max(0, len - limit);
+    // Validate response shape: must have time array with data
+    if (!d || !d.time || !Array.isArray(d.time) || d.time.length === 0) {
+      return null;
+    }
+
+    // Build candle objects from parallel arrays
+    const len    = d.time.length;
+    const from   = Math.max(0, len - limit);
     const candles = [];
-    for (let i = start; i < len; i++) {
+
+    for (let i = from; i < len; i++) {
       candles.push({
         openTime: d.time[i],
         open:     parseFloat(d.open[i]),
@@ -97,9 +110,12 @@ async function fetchKlines(symbol, tf, limit = 3) {
         close:    parseFloat(d.close[i]),
       });
     }
-    return candles;
+
+    return candles.length >= 2 ? candles : null;
+
   } catch (err) {
-    if (err.response && err.response.status !== 404) {
+    // 404 = pair doesn't support this timeframe, skip silently
+    if (!err.response || err.response.status !== 404) {
       console.error(`  [MEXC] kline ${symbol} ${tf}: ${err.message}`);
     }
     return null;
@@ -107,7 +123,11 @@ async function fetchKlines(symbol, tf, limit = 3) {
 }
 
 /**
- * Fetch current live price for a perpetual symbol.
+ * Fetch the live price for a perpetual symbol.
+ *
+ * From the docs:
+ *   GET /ticker?symbol=BTC_USDT
+ *   Response: data.lastPrice (single object, not array)
  */
 async function fetchPrice(symbol) {
   try {
@@ -115,41 +135,40 @@ async function fetchPrice(symbol) {
       params: { symbol },
       timeout: 5000,
     });
+
     const d = res.data && res.data.data;
     if (!d) return null;
-    // ticker returns array or single object
-    const ticker = Array.isArray(d) ? d.find(t => t.symbol === symbol) : d;
-    return ticker ? parseFloat(ticker.lastPrice) : null;
+
+    // API returns single object when symbol is provided
+    const price = parseFloat(d.lastPrice);
+    return isNaN(price) ? null : price;
+
   } catch (err) {
     return null;
   }
 }
 
-// ── Fallback hardcoded pairs (used if dynamic fetch fails) ───────────────────
+// ── Fallback pair list ────────────────────────────────────────────────────────
 const FALLBACK_PAIRS = [
   "BTC_USDT","ETH_USDT","BNB_USDT","SOL_USDT","XRP_USDT",
   "DOGE_USDT","ADA_USDT","AVAX_USDT","DOT_USDT","LTC_USDT",
   "LINK_USDT","UNI_USDT","ATOM_USDT","ETC_USDT","XLM_USDT",
   "BCH_USDT","FIL_USDT","APT_USDT","ARB_USDT","OP_USDT",
   "MATIC_USDT","NEAR_USDT","ALGO_USDT","VET_USDT","ICP_USDT",
-  "GRT_USDT","EGLD_USDT","SAND_USDT","MANA_USDT","AXS_USDT",
-  "AAVE_USDT","MKR_USDT","COMP_USDT","CRV_USDT","SNX_USDT",
-  "SUSHI_USDT","DYDX_USDT","GMX_USDT","INJ_USDT","SUI_USDT",
-  "SEI_USDT","TIA_USDT","WLD_USDT","FET_USDT","RENDER_USDT",
-  "RUNE_USDT","STX_USDT","CFX_USDT","FLOW_USDT","ROSE_USDT",
-  "ZIL_USDT","IOTA_USDT","XTZ_USDT","EOS_USDT","TRX_USDT",
-  "HBAR_USDT","QNT_USDT","LDO_USDT","GALA_USDT","ENJ_USDT",
-  "CHZ_USDT","BAT_USDT","STORJ_USDT","ANKR_USDT","CELR_USDT",
-  "SKL_USDT","BAND_USDT","OCEAN_USDT","AGIX_USDT","TAO_USDT",
-  "ONE_USDT","KLAY_USDT","DCR_USDT","ZEC_USDT","DASH_USDT",
-  "XMR_USDT","NEO_USDT","IOTX_USDT","NMR_USDT","RLC_USDT",
-  "COTI_USDT","CKB_USDT","SC_USDT","CVC_USDT","OXT_USDT",
-  "REQ_USDT","BAL_USDT","FXS_USDT","CVX_USDT","RPL_USDT",
+  "GRT_USDT","SAND_USDT","MANA_USDT","AXS_USDT","AAVE_USDT",
+  "MKR_USDT","COMP_USDT","CRV_USDT","SNX_USDT","SUSHI_USDT",
+  "DYDX_USDT","GMX_USDT","INJ_USDT","SUI_USDT","SEI_USDT",
+  "TIA_USDT","WLD_USDT","FET_USDT","RENDER_USDT","RUNE_USDT",
+  "STX_USDT","CFX_USDT","FLOW_USDT","ROSE_USDT","ZIL_USDT",
+  "IOTA_USDT","XTZ_USDT","EOS_USDT","TRX_USDT","HBAR_USDT",
+  "LDO_USDT","GALA_USDT","ENJ_USDT","CHZ_USDT","BAT_USDT",
+  "ANKR_USDT","CELR_USDT","BAND_USDT","OCEAN_USDT","BLUR_USDT",
+  "PENDLE_USDT","WIF_USDT","PEPE_USDT","FLOKI_USDT","BONK_USDT",
+  "SHIB_USDT","NOT_USDT","EIGEN_USDT","DRIFT_USDT","ZRO_USDT",
   "ALT_USDT","JUP_USDT","DYM_USDT","PYTH_USDT","STRK_USDT",
-  "BLUR_USDT","PENDLE_USDT","WIF_USDT","BOME_USDT","POPCAT_USDT",
-  "TURBO_USDT","PEPE_USDT","FLOKI_USDT","BONK_USDT","SHIB_USDT",
-  "NOT_USDT","DOGS_USDT","HMSTR_USDT","EIGEN_USDT","DRIFT_USDT",
-  "SAFE_USDT","LISTA_USDT","ZRO_USDT","IO_USDT","OMNI_USDT",
+  "TAO_USDT","AGIX_USDT","ONE_USDT","KLAY_USDT","NEO_USDT",
+  "IOTX_USDT","NMR_USDT","BAL_USDT","CVX_USDT","RPL_USDT",
+  "SAFE_USDT","LISTA_USDT","IO_USDT","OMNI_USDT","TURBO_USDT",
 ];
 
 module.exports = { fetchKlines, fetchPrice, getPairs };
