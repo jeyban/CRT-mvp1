@@ -12,7 +12,6 @@
   --green:#00e5a0;--green-dim:rgba(0,229,160,.10);
   --red:#ff4b6e;--red-dim:rgba(255,75,110,.10);
   --blue:#4d9fff;--blue-dim:rgba(77,159,255,.10);
-  --amber:#f5a623;--amber-dim:rgba(245,166,35,.10);
   --text:#d4d9e8;--text-dim:#6b7592;--text-muted:#3d4560;
   --mono:'JetBrains Mono',monospace;--head:'Syne',sans-serif;
 }
@@ -38,8 +37,13 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .leg-item{display:flex;align-items:center;gap:6px}
 .leg-dot{width:8px;height:8px;border-radius:50%}
 
+/* Schedule info */
+.schedule-info{display:flex;gap:16px;padding:8px 0 4px;font-size:11px;color:var(--text-muted);flex-wrap:wrap}
+.schedule-info span{display:flex;align-items:center;gap:6px}
+.sched-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);display:inline-block}
+
 /* Toolbar */
-.toolbar{display:flex;align-items:center;gap:12px;padding:14px 0 6px;flex-wrap:wrap}
+.toolbar{display:flex;align-items:center;gap:12px;padding:12px 0 6px;flex-wrap:wrap}
 .search-wrap{flex:1;min-width:200px;max-width:340px;position:relative}
 .search-wrap .ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px}
 .search-input{width:100%;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:9px 12px 9px 36px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .2s}
@@ -49,15 +53,22 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .btn{background:var(--bg-panel);border:1px solid var(--border);border-radius:7px;color:var(--text-dim);font-family:var(--mono);font-size:12px;padding:8px 16px;cursor:pointer;transition:all .2s}
 .btn:hover:not(:disabled){background:var(--blue-dim);border-color:var(--blue);color:var(--blue)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.btn.scanning{background:var(--blue-dim);border-color:var(--blue);color:var(--blue)}
+.btn.running{background:var(--blue-dim);border-color:var(--blue);color:var(--blue)}
+
+/* Scan status bar */
+.status-bar{font-size:11px;padding:4px 0 10px;min-height:20px;color:var(--text-muted)}
+.status-bar.live{color:var(--blue)}
+.status-bar.done{color:var(--green)}
+.status-bar.err{color:var(--red)}
+.status-bar.auto{color:var(--amber,#f5a623)}
 
 /* Tabs */
-.tabs{display:flex;gap:4px;padding:12px 0 0;border-bottom:1px solid var(--border);margin-bottom:16px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:16px}
 .tab{padding:8px 18px;font-family:var(--mono);font-size:12px;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none}
 .tab:hover{color:var(--text)}
 .tab.active{color:var(--blue);border-bottom-color:var(--blue)}
 
-/* Panels grid */
+/* Panels */
 .panels{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:700px){.panels{grid-template-columns:1fr}}
 .panel{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
@@ -67,6 +78,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:var(--mono)}
 .badge.on{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,229,160,.25)}
 .badge.off{background:var(--bg);color:var(--text-dim);border:1px solid var(--border)}
+.panel-scan-status{font-size:10px;padding:6px 14px;color:var(--blue);background:rgba(77,159,255,.05);border-bottom:1px solid var(--border);display:none}
+.panel-scan-status.visible{display:block}
 .log{padding:12px;display:flex;flex-direction:column;gap:10px;max-height:70vh;overflow-y:auto}
 .log::-webkit-scrollbar{width:4px}
 .log::-webkit-scrollbar-thumb{background:var(--border-h);border-radius:2px}
@@ -76,8 +89,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .card:hover{transform:translateY(-1px);border-color:var(--border-h)}
 .card.bull{border-left:3px solid var(--green)}
 .card.bear{border-left:3px solid var(--red)}
-@keyframes flash{0%{box-shadow:0 0 20px rgba(0,229,160,.6);border-color:var(--green)}100%{box-shadow:none}}
-.card.new{animation:flash 2s ease-out forwards}
+@keyframes flash{0%{box-shadow:0 0 20px rgba(0,229,160,.5);border-color:var(--green)}100%{box-shadow:none}}
+.card.new{animation:flash 2.5s ease-out forwards}
 .card-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border)}
 .sym-name{font-family:var(--head);font-size:16px;font-weight:800;color:#fff}
 .sym-pair{font-size:10px;color:var(--text-muted)}
@@ -93,12 +106,14 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .card-foot{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-top:1px solid var(--border);background:var(--bg)}
 .tf-tag{font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:1px}
 .scan-t{font-size:10px;color:var(--text-muted)}
+.manual-tag{font-size:9px;padding:1px 6px;border-radius:4px;background:var(--blue-dim);color:var(--blue);margin-left:6px}
 
-/* History table */
+/* History */
 .hist-wrap{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
 .hist-toolbar{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .hist-toolbar select{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;padding:6px 10px;outline:none;cursor:pointer}
 .hist-count{font-size:11px;color:var(--text-muted);margin-left:auto}
+.hist-note{font-size:10px;color:var(--text-muted);padding:6px 16px;border-bottom:1px solid var(--border);background:rgba(77,159,255,.03)}
 .hist-table{width:100%;border-collapse:collapse;font-size:12px}
 .hist-table th{padding:8px 12px;text-align:left;font-size:10px;color:var(--text-muted);letter-spacing:.5px;text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--bg-card);font-weight:500}
 .hist-table td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text-dim);vertical-align:middle}
@@ -120,9 +135,10 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .empty small{font-size:11px;color:var(--text-muted)}
 
 /* Toast */
-.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:8px;font-family:var(--mono);font-size:12px;transform:translateY(20px);opacity:0;transition:all .3s ease;z-index:9999;max-width:320px}
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:8px;font-family:var(--mono);font-size:12px;transform:translateY(20px);opacity:0;transition:all .3s ease;z-index:9999;max-width:340px}
 .toast.ok{background:var(--green-dim);border:1px solid var(--green);color:var(--green)}
 .toast.err{background:var(--red-dim);border:1px solid var(--red);color:var(--red)}
+.toast.info{background:var(--blue-dim);border:1px solid var(--blue);color:var(--blue)}
 .toast.show{transform:translateY(0);opacity:1}
 </style>
 </head>
@@ -143,22 +159,28 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
         <div class="dot offline" id="dot"></div>
         <span id="dot-label">Connecting…</span>
       </div>
-      <div>Last Scan: <span id="last-scan" style="color:var(--text)">—</span></div>
+      <div>Last Auto Scan: <span id="last-scan" style="color:var(--text)">—</span></div>
     </div>
   </header>
 
   <!-- Legend -->
   <div class="legend">
-    <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div><span>Bullish CRT — C2 swept above C1 high, price reclaimed below</span></div>
-    <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div><span>Bearish CRT — C2 swept below C1 low, price reclaimed above</span></div>
-    <div class="leg-item"><div class="leg-dot" style="background:var(--blue)"></div><span>Blue = live price</span></div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div><span>Bullish — C2 swept above C1 high, price reclaimed below</span></div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div><span>Bearish — C2 swept below C1 low, price reclaimed above</span></div>
+  </div>
+
+  <!-- Schedule info -->
+  <div class="schedule-info">
+    <span><div class="sched-dot"></div>4H auto scan: 1AM · 5AM · 9AM · 1PM · 5PM · 9PM UTC</span>
+    <span><div class="sched-dot"></div>1D auto scan: 8PM UTC daily</span>
+    <span style="color:var(--text-muted)">Manual scans shown in UI only · not saved to history</span>
   </div>
 
   <!-- Toolbar -->
   <div class="toolbar">
     <div class="search-wrap">
       <span class="ico">🔍</span>
-      <input class="search-input" id="search" type="text" placeholder="Search symbol (BTC, ETH…)" autocomplete="off"/>
+      <input class="search-input" id="search" type="text" placeholder="Search symbol…" autocomplete="off"/>
     </div>
     <div class="scan-btns">
       <button class="btn" id="btn-4h" onclick="triggerScan('4h')">Scan 4H</button>
@@ -167,41 +189,50 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     </div>
   </div>
 
+  <!-- Status bar -->
+  <div class="status-bar" id="status-bar">Ready — waiting for next scheduled scan</div>
+
   <!-- Tabs -->
   <div class="tabs">
-    <button class="tab active" id="tab-live" onclick="switchTab('live')">Live Alerts</button>
-    <button class="tab" id="tab-hist" onclick="switchTab('hist')">History</button>
+    <button class="tab active" id="tab-live" onclick="switchTab('live')">Live Results</button>
+    <button class="tab" id="tab-hist" onclick="switchTab('hist')">History (Auto Scans)</button>
   </div>
 
-  <!-- Live Alerts View -->
+  <!-- Live View -->
   <div id="view-live">
     <div class="panels">
-      <!-- 4H -->
+
+      <!-- 4H Panel -->
       <div class="panel">
         <div class="panel-hdr">
-          <div><div class="tf-label">4H</div><div class="tf-desc">PERPETUAL · 6×/DAY</div></div>
+          <div><div class="tf-label">4H</div><div class="tf-desc">PERPETUAL · AUTO 6×/DAY</div></div>
           <span class="badge off" id="ct-4h">0</span>
         </div>
+        <div class="panel-scan-status" id="ps-4h">⟳ Scanning…</div>
         <div class="log" id="log-4h">
-          <div class="empty"><span class="empty-ico">⏳</span><p>Loading…</p></div>
+          <div class="empty"><span class="empty-ico">⏳</span><p>Waiting for scan results…</p><small>Auto scans run at 1AM · 5AM · 9AM · 1PM · 5PM · 9PM UTC</small></div>
         </div>
       </div>
-      <!-- 1D -->
+
+      <!-- 1D Panel -->
       <div class="panel">
         <div class="panel-hdr">
-          <div><div class="tf-label">1D</div><div class="tf-desc">PERPETUAL · 8PM UTC</div></div>
+          <div><div class="tf-label">1D</div><div class="tf-desc">PERPETUAL · AUTO 8PM UTC</div></div>
           <span class="badge off" id="ct-1d">0</span>
         </div>
+        <div class="panel-scan-status" id="ps-1d">⟳ Scanning…</div>
         <div class="log" id="log-1d">
-          <div class="empty"><span class="empty-ico">⏳</span><p>Loading…</p></div>
+          <div class="empty"><span class="empty-ico">⏳</span><p>Waiting for scan results…</p><small>Auto scan runs at 8PM UTC daily</small></div>
         </div>
       </div>
+
     </div>
   </div>
 
   <!-- History View -->
   <div id="view-hist" style="display:none">
     <div class="hist-wrap">
+      <div class="hist-note">📋 History shows AUTO scan results only. Manual scans are not included.</div>
       <div class="hist-toolbar">
         <select id="hist-tf" onchange="loadHistory()">
           <option value="all">All timeframes</option>
@@ -224,58 +255,52 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
         <table class="hist-table">
           <thead>
             <tr>
-              <th>Symbol</th>
-              <th>Direction</th>
-              <th>TF</th>
-              <th>Price</th>
-              <th>C1 High</th>
-              <th>C1 Low</th>
-              <th>Sweep Level</th>
-              <th>Scanned At</th>
+              <th>Symbol</th><th>Direction</th><th>TF</th>
+              <th>Price</th><th>C1 High</th><th>C1 Low</th>
+              <th>Sweep Level</th><th>Scanned At (UTC)</th>
             </tr>
           </thead>
           <tbody id="hist-body">
-            <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Click "Refresh History" to load</td></tr>
+            <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">
+              Click "↺ Refresh History" to load auto scan history
+            </td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-</div>
+</div><!-- /wrap -->
 
 <script>
 // ============================================================
-// CONFIG
+// CONFIG — update this if your Render URL changes
 // ============================================================
 var API = "https://crt-mvp1.onrender.com/api";
-var REFRESH = 60000;
 
 // ============================================================
 // STATE
 // ============================================================
-var alerts    = { "4h": [], "1d": [] };
-var histData  = [];
-var searchQ   = "";
-var scanning  = { "4h": false, "1d": false };
-var retries   = 0;
-var MAX_R     = 18;
-var curTab    = "live";
+var alerts   = { "4h": [], "1d": [] };
+var histData = [];
+var searchQ  = "";
+var curTab   = "live";
+var scanning = { "4h": false, "1d": false };
+var retries  = 0;
+var MAX_R    = 18; // retry for up to 3 minutes on startup
+
+// Poll interval IDs
+var pollTimer    = null;
+var fastPollTimer = null;
 
 // ============================================================
-// TAB SWITCHING
+// BOOT — fetch immediately, then poll every 60s
 // ============================================================
-function switchTab(tab) {
-  curTab = tab;
-  document.getElementById("view-live").style.display = tab === "live" ? "" : "none";
-  document.getElementById("view-hist").style.display = tab === "hist" ? "" : "none";
-  document.getElementById("tab-live").className = "tab" + (tab === "live" ? " active" : "");
-  document.getElementById("tab-hist").className = "tab" + (tab === "hist" ? " active" : "");
-  if (tab === "hist" && histData.length === 0) loadHistory();
-}
+fetchAlerts();
+pollTimer = setInterval(fetchAlerts, 60000);
 
 // ============================================================
-// FETCH LIVE ALERTS
+// FETCH ALERTS FROM BACKEND
 // ============================================================
 function fetchAlerts() {
   fetch(API + "/alerts")
@@ -285,84 +310,224 @@ function fetchAlerts() {
     })
     .then(function(j) {
       if (!j.success) throw new Error("success=false");
-      alerts = j.data;
+
+      var d = j.data;
+      if (!d) throw new Error("no data in response");
+
+      // Update state
+      alerts["4h"] = Array.isArray(d["4h"]) ? d["4h"] : [];
+      alerts["1d"] = Array.isArray(d["1d"]) ? d["1d"] : [];
+
       retries = 0;
       setOnline(true);
       renderAll();
-      updateLastScan(j.data.lastScan);
+      updateLastScan(d.lastScan);
     })
     .catch(function(e) {
-      console.error("[fetch]", e.message);
+      console.error("[fetchAlerts]", e.message);
       setOnline(false);
+
+      // Retry with increasing delay on startup (backend may be waking up)
       if (retries < MAX_R) {
         retries++;
+        setStatus("Backend waking up… retry " + retries + "/" + MAX_R, "live");
         setTimeout(fetchAlerts, 10000);
+      } else {
+        setStatus("Cannot reach backend at " + API, "err");
       }
     });
 }
 
 // ============================================================
-// RENDER LIVE PANELS
+// RENDER PANELS
 // ============================================================
-function renderAll() { renderLog("4h"); renderLog("1d"); }
+function renderAll() {
+  renderLog("4h");
+  renderLog("1d");
+}
 
 function renderLog(tf) {
-  var log  = document.getElementById("log-" + tf);
-  var ct   = document.getElementById("ct-" + tf);
+  var log = document.getElementById("log-" + tf);
+  var ct  = document.getElementById("ct-" + tf);
   if (!log) return;
 
   var list = (alerts[tf] || []).filter(function(a) {
     return !searchQ || (a.symbol && a.symbol.toLowerCase().indexOf(searchQ.toLowerCase()) !== -1);
   });
 
-  if (ct) { ct.textContent = list.length; ct.className = list.length > 0 ? "badge on" : "badge off"; }
+  // Update badge
+  if (ct) {
+    ct.textContent = list.length;
+    ct.className   = list.length > 0 ? "badge on" : "badge off";
+  }
 
+  // Empty state
   if (list.length === 0) {
     log.innerHTML = '<div class="empty"><span class="empty-ico">📭</span>' +
-      '<p>' + (searchQ ? "No results match your search." : "No CRT setups detected yet.") + '</p>' +
-      '<small>Trigger a manual scan or wait for the schedule.</small></div>';
+      '<p>' + (searchQ ? "No results match your search." : "No CRT setups found yet.") + '</p>' +
+      '<small>' + (searchQ ? "Try a different search term." : "Run a manual scan or wait for the auto schedule.") + '</small>' +
+      '</div>';
     return;
   }
 
-  log.innerHTML = list.map(buildCard).join("");
+  // Build all cards
+  var html = list.map(function(a) {
+    try { return buildCard(a); }
+    catch(e) { return '<div style="color:var(--red);padding:8px;font-size:11px">Card error: ' + e.message + '</div>'; }
+  }).join("");
+
+  log.innerHTML = html;
 }
 
 // ============================================================
 // CARD BUILDER
 // ============================================================
-function buildCard(a) {
+function buildCard(a, isNew) {
   var bull = (a.direction || "").toUpperCase() === "BULLISH";
   var dc   = bull ? "bull" : "bear";
-  // Symbol: perpetuals use BTC_USDT format
-  var sym  = (a.symbol || "?").replace(/_USDT$/,"").replace("USDT","");
-  var time = a.timestamp ? new Date(a.timestamp).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "—";
+  var sym  = (a.symbol || "?").replace(/_USDT$/, "").replace(/USDT$/, "");
+  var time = a.timestamp
+    ? new Date(a.timestamp).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})
+    : "—";
+  var newCls = isNew ? " new" : "";
 
-  return '<div class="card ' + dc + '">' +
-    '<div class="card-hdr">' +
-      '<div><span class="sym-name">' + sym + '</span><span class="sym-pair">/USDT PERP</span></div>' +
-      '<div class="dir-tag ' + dc + '">' + (bull ? "▲ Bullish CRT" : "▼ Bearish CRT") + '</div>' +
-    '</div>' +
-    '<div class="card-body">' +
-      sr("Current Price", sv("blue","$"+fmt(a.currentPrice)), bull?"Swept Above":"Swept Below", "$"+fmt(bull ? a.c1High : a.c1Low)) +
-      sr("C1 High", "$"+fmt(a.c1High), "C1 Low", "$"+fmt(a.c1Low)) +
-      sr("C2 High", "$"+fmt(a.c2High), "C2 Low", "$"+fmt(a.c2Low)) +
-      sr("Sweep Level", sv(dc,"$"+fmt(a.sweepLevel)), "Now", bull ? "Below C1 High" : "Above C1 Low") +
-    '</div>' +
-    '<div class="card-foot">' +
-      '<span class="tf-tag">' + (a.timeframe||"").toUpperCase() + ' PERP</span>' +
-      '<span class="scan-t">Scanned ' + time + '</span>' +
-    '</div>' +
-  '</div>';
+  return (
+    '<div class="card ' + dc + newCls + '">' +
+      '<div class="card-hdr">' +
+        '<div>' +
+          '<span class="sym-name">' + sym + '</span>' +
+          '<span class="sym-pair">/USDT PERP</span>' +
+        '</div>' +
+        '<div class="dir-tag ' + dc + '">' + (bull ? "▲ Bullish CRT" : "▼ Bearish CRT") + '</div>' +
+      '</div>' +
+      '<div class="card-body">' +
+        sr("Current Price", sv("blue", "$" + fmt(a.currentPrice)),
+           bull ? "Swept Above" : "Swept Below", "$" + fmt(bull ? a.c1High : a.c1Low)) +
+        sr("C1 High", "$" + fmt(a.c1High), "C1 Low", "$" + fmt(a.c1Low)) +
+        sr("C2 High", "$" + fmt(a.c2High), "C2 Low", "$" + fmt(a.c2Low)) +
+        sr("Sweep Level", sv(dc, "$" + fmt(a.sweepLevel)),
+           "Position Now", bull ? "Below C1 High" : "Above C1 Low") +
+      '</div>' +
+      '<div class="card-foot">' +
+        '<span class="tf-tag">' + (a.timeframe || "").toUpperCase() + ' PERP</span>' +
+        '<span class="scan-t">Scanned ' + time + '</span>' +
+      '</div>' +
+    '</div>'
+  );
 }
 
-function sr(l1,v1,l2,v2) {
-  return '<div class="srow">' + st(l1,v1) + st(l2,v2) + '</div>';
+function sr(l1, v1, l2, v2) {
+  return '<div class="srow">' + st(l1, v1) + st(l2, v2) + '</div>';
 }
-function st(l,v) {
+function st(l, v) {
   return '<div class="stat"><span class="slabel">' + l + '</span><span class="sval">' + v + '</span></div>';
 }
-function sv(cls,v) {
-  return '<span class="sval' + (cls ? " "+cls : "") + '">' + v + '</span>';
+function sv(cls, v) {
+  return '<span class="sval' + (cls ? " " + cls : "") + '">' + v + '</span>';
+}
+function fmt(n) {
+  n = parseFloat(n);
+  if (isNaN(n)) return "—";
+  if (n < 0.01) return n.toFixed(6);
+  if (n < 1)    return n.toFixed(4);
+  if (n < 100)  return n.toFixed(3);
+  return n.toFixed(2);
+}
+
+// ============================================================
+// MANUAL SCAN TRIGGER
+// ============================================================
+function triggerScan(tf) {
+  if (scanning[tf]) {
+    toast("⏳ " + tf.toUpperCase() + " scan already running…", "info");
+    return;
+  }
+
+  var btn = document.getElementById("btn-" + tf);
+  var ps  = document.getElementById("ps-" + tf);
+
+  scanning[tf] = true;
+  if (btn) { btn.disabled = true; btn.classList.add("running"); btn.textContent = "Scanning…"; }
+  if (ps)  { ps.textContent = "⟳ Manual scan in progress…"; ps.className = "panel-scan-status visible"; }
+
+  setStatus("Manual " + tf.toUpperCase() + " scan started — results will appear here when complete…", "live");
+
+  // Clear current panel while scanning so user sees it's working
+  var log = document.getElementById("log-" + tf);
+  if (log) {
+    log.innerHTML = '<div class="empty">' +
+      '<span class="empty-ico" style="animation:spin 1s linear infinite;display:inline-block">⟳</span>' +
+      '<p>Scanning ' + tf.toUpperCase() + ' perpetual pairs…</p>' +
+      '<small>This takes 1-2 minutes for 200+ pairs</small>' +
+    '</div>';
+  }
+
+  fetch(API + "/scan/" + tf, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(j) {
+    if (!j.success) throw new Error(j.error || "Scan trigger failed");
+
+    toast("✅ " + tf.toUpperCase() + " scan running — refreshing every 15s…", "ok");
+
+    // Poll aggressively every 15 seconds while waiting for results
+    // Backend scan takes ~90-120 seconds for 200+ pairs
+    var pollCount = 0;
+    var maxPolls  = 12; // poll for up to 3 minutes
+
+    var waitPoll = setInterval(function() {
+      pollCount++;
+      setStatus("Waiting for " + tf.toUpperCase() + " results… (" + pollCount + "/" + maxPolls + ")", "live");
+
+      fetch(API + "/alerts/" + tf)
+        .then(function(r) { return r.json(); })
+        .then(function(j2) {
+          if (j2.success && j2.alerts && j2.alerts.length > 0) {
+            // Got results — update state and render
+            alerts[tf] = j2.alerts;
+            renderLog(tf);
+
+            clearInterval(waitPoll);
+            scanDone(tf, btn, ps, j2.alerts.length);
+          } else if (pollCount >= maxPolls) {
+            // Timed out — scan may have found nothing
+            alerts[tf] = [];
+            renderLog(tf);
+            clearInterval(waitPoll);
+            scanDone(tf, btn, ps, 0);
+          }
+        })
+        .catch(function() {
+          if (pollCount >= maxPolls) {
+            clearInterval(waitPoll);
+            scanDone(tf, btn, ps, 0);
+          }
+        });
+    }, 15000);
+  })
+  .catch(function(e) {
+    console.error("[triggerScan]", e.message);
+    toast("❌ Could not start scan: " + e.message, "err");
+    scanDone(tf, btn, ps, -1);
+  });
+}
+
+function scanDone(tf, btn, ps, count) {
+  scanning[tf] = false;
+  if (btn) { btn.disabled = false; btn.classList.remove("running"); btn.textContent = "Scan " + tf.toUpperCase(); }
+  if (ps)  { ps.className = "panel-scan-status"; }
+
+  if (count > 0) {
+    setStatus("✓ " + tf.toUpperCase() + " scan complete — " + count + " CRT setups found (not saved to history)", "done");
+    toast("✅ " + tf.toUpperCase() + ": " + count + " CRT setups found", "ok");
+  } else if (count === 0) {
+    setStatus("✓ " + tf.toUpperCase() + " scan complete — no CRT setups found", "done");
+    toast("ℹ " + tf.toUpperCase() + " scan complete — no setups found", "info");
+  } else {
+    setStatus("✗ " + tf.toUpperCase() + " scan failed", "err");
+  }
 }
 
 // ============================================================
@@ -383,11 +548,9 @@ function loadHistory() {
     .then(function(j) {
       histData = j.data || [];
       renderHistory();
-      toast("✅ Loaded " + histData.length + " history records");
+      toast("✅ Loaded " + histData.length + " history records", "ok");
     })
-    .catch(function(e) {
-      toast("❌ Failed to load history: " + e.message, true);
-    })
+    .catch(function(e) { toast("❌ History load failed: " + e.message, "err"); })
     .finally(function() {
       if (btn) { btn.disabled = false; btn.textContent = "↺ Refresh History"; }
     });
@@ -397,90 +560,58 @@ function renderHistory() {
   var dirFilter = document.getElementById("hist-dir").value;
   var body      = document.getElementById("hist-body");
   var countEl   = document.getElementById("hist-count");
-  if (!body) return;
 
-  var filtered = dirFilter === "all"
-    ? histData
-    : histData.filter(function(r) { return (r.direction||"").toUpperCase() === dirFilter; });
-
-  // Also apply search
-  if (searchQ) {
-    filtered = filtered.filter(function(r) {
-      return r.symbol && r.symbol.toLowerCase().indexOf(searchQ.toLowerCase()) !== -1;
-    });
-  }
+  var filtered = histData.filter(function(r) {
+    var dirOk = dirFilter === "all" || (r.direction || "").toUpperCase() === dirFilter;
+    var symOk = !searchQ || (r.symbol && r.symbol.toLowerCase().indexOf(searchQ.toLowerCase()) !== -1);
+    return dirOk && symOk;
+  });
 
   if (countEl) countEl.textContent = filtered.length + " records";
 
-  if (filtered.length === 0) {
-    body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">No history records found</td></tr>';
+  if (!filtered.length) {
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">' +
+      (histData.length === 0 ? 'Click "↺ Refresh History" to load auto scan history' : 'No records match your filters') +
+      '</td></tr>';
     return;
   }
 
   body.innerHTML = filtered.map(function(r) {
-    var bull   = (r.direction||"").toUpperCase() === "BULLISH";
-    var dc     = bull ? "bull" : "bear";
-    var sym    = (r.symbol||"?").replace(/_USDT$/,"").replace("USDT","");
-    var ts     = r.scanned_at
-      ? new Date(r.scanned_at).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})
+    var bull  = (r.direction || "").toUpperCase() === "BULLISH";
+    var dc    = bull ? "bull" : "bear";
+    var sym   = (r.symbol || "?").replace(/_USDT$/, "").replace(/USDT$/, "");
+    var ts    = r.scanned_at
+      ? new Date(r.scanned_at).toLocaleString([], {month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"})
       : "—";
     var price  = r.current_price || (r.raw && r.raw.currentPrice) || 0;
-    var c1h    = r.c1_high  || (r.raw && r.raw.c1High)  || 0;
-    var c1l    = r.c1_low   || (r.raw && r.raw.c1Low)   || 0;
-    var sweep  = r.sweep_level || (r.raw && r.raw.sweepLevel) || 0;
+    var c1h    = r.c1_high       || (r.raw && r.raw.c1High)       || 0;
+    var c1l    = r.c1_low        || (r.raw && r.raw.c1Low)        || 0;
+    var sweep  = r.sweep_level   || (r.raw && r.raw.sweepLevel)   || 0;
     var tf     = r.timeframe || "";
 
     return '<tr>' +
-      '<td><span class="hist-sym">' + sym + '</span><span style="color:var(--text-muted);font-size:10px"> /USDT</span></td>' +
-      '<td><span class="dir-pill ' + dc + '">' + (bull?"▲ Bullish":"▼ Bearish") + '</span></td>' +
+      '<td><span class="hist-sym">' + sym + '</span><span style="color:var(--text-muted);font-size:10px"> PERP</span></td>' +
+      '<td><span class="dir-pill ' + dc + '">' + (bull ? "▲ Bullish" : "▼ Bearish") + '</span></td>' +
       '<td><span class="tf-pill">' + tf.toUpperCase() + '</span></td>' +
       '<td style="color:var(--blue)">$' + fmt(price) + '</td>' +
       '<td>$' + fmt(c1h) + '</td>' +
       '<td>$' + fmt(c1l) + '</td>' +
-      '<td style="color:' + (bull?"var(--green)":"var(--red)") + '">$' + fmt(sweep) + '</td>' +
+      '<td style="color:' + (bull ? "var(--green)" : "var(--red)") + '">$' + fmt(sweep) + '</td>' +
       '<td>' + ts + '</td>' +
     '</tr>';
   }).join("");
 }
 
 // ============================================================
-// MANUAL SCAN TRIGGER
+// TAB SWITCHING
 // ============================================================
-function triggerScan(tf) {
-  if (scanning[tf]) return;
-  var btn = document.getElementById("btn-" + tf);
-  scanning[tf] = true;
-  if (btn) { btn.disabled = true; btn.classList.add("scanning"); btn.textContent = "Scanning…"; }
-
-  fetch(API + "/scan/" + tf, { method: "POST", headers: { "Content-Type": "application/json" } })
-    .then(function(r) { return r.json(); })
-    .then(function(j) {
-      if (j.success) {
-        toast("✅ " + tf.toUpperCase() + " scan started — results in ~2 min");
-        setTimeout(fetchAlerts, 120000);
-      } else {
-        toast("⚠️ " + (j.error || "error"), true);
-      }
-    })
-    .catch(function(e) { toast("❌ " + e.message, true); })
-    .finally(function() {
-      setTimeout(function() {
-        scanning[tf] = false;
-        if (btn) { btn.disabled = false; btn.classList.remove("scanning"); btn.textContent = "Scan " + tf.toUpperCase(); }
-      }, 130000);
-    });
-}
-
-// ============================================================
-// FORMAT
-// ============================================================
-function fmt(n) {
-  n = parseFloat(n);
-  if (isNaN(n)) return "—";
-  if (n < 0.01) return n.toFixed(6);
-  if (n < 1)    return n.toFixed(4);
-  if (n < 100)  return n.toFixed(3);
-  return n.toFixed(2);
+function switchTab(tab) {
+  curTab = tab;
+  document.getElementById("view-live").style.display = tab === "live" ? "" : "none";
+  document.getElementById("view-hist").style.display = tab === "hist" ? "" : "none";
+  document.getElementById("tab-live").className = "tab" + (tab === "live" ? " active" : "");
+  document.getElementById("tab-hist").className = "tab" + (tab === "hist" ? " active" : "");
+  if (tab === "hist" && histData.length === 0) loadHistory();
 }
 
 // ============================================================
@@ -493,6 +624,11 @@ function setOnline(ok) {
   if (l) l.textContent = ok ? "Backend Online" : "Backend Offline";
 }
 
+function setStatus(msg, cls) {
+  var el = document.getElementById("status-bar");
+  if (el) { el.textContent = msg; el.className = "status-bar " + (cls || ""); }
+}
+
 function updateLastScan(ls) {
   var el    = document.getElementById("last-scan");
   var times = Object.values(ls || {}).filter(Boolean);
@@ -501,26 +637,29 @@ function updateLastScan(ls) {
     : "Never";
 }
 
-function toast(msg, isErr) {
+function toast(msg, type) {
   var t = document.createElement("div");
-  t.className   = "toast " + (isErr ? "err" : "ok");
+  t.className   = "toast " + (type || "ok");
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(function() { t.classList.add("show"); }, 10);
-  setTimeout(function() { t.classList.remove("show"); setTimeout(function() { t.remove(); }, 400); }, 3500);
+  setTimeout(function() {
+    t.classList.remove("show");
+    setTimeout(function() { t.remove(); }, 400);
+  }, 4000);
 }
 
+// Search
 document.getElementById("search").addEventListener("input", function(e) {
   searchQ = e.target.value.trim();
   renderAll();
   if (curTab === "hist") renderHistory();
 });
 
-// ============================================================
-// BOOT
-// ============================================================
-fetchAlerts();
-setInterval(fetchAlerts, REFRESH);
+// Spinning icon CSS
+var style = document.createElement("style");
+style.textContent = "@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}";
+document.head.appendChild(style);
 </script>
 </body>
 </html>
