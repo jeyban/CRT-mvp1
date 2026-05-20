@@ -1,19 +1,19 @@
 /**
  * scanner.js — API Routes
  *
- * GET  /api/alerts              → Latest alerts (4H + 1D)
- * GET  /api/alerts/:tf          → Latest alerts for one timeframe
- * POST /api/scan/:tf            → Trigger silent scan
- * GET  /api/scan/:tf/stream     → SSE streaming scan (debug)
- * GET  /api/history             → All historical alerts from DB
- * GET  /api/history/:tf         → History for one timeframe
- * GET  /api/status              → Health check
+ * GET  /api/alerts           → Latest alerts (memory + Supabase fallback)
+ * GET  /api/alerts/:tf       → Latest alerts for one timeframe
+ * POST /api/scan/:tf         → Manual scan (UI only, NOT saved to DB)
+ * GET  /api/scan/:tf/stream  → SSE streaming scan (debug, NOT saved to DB)
+ * GET  /api/history          → All history from Supabase
+ * GET  /api/history/:tf      → History for one timeframe
+ * GET  /api/status           → Health check + last scan times
  */
 
 const express = require("express");
 const router  = express.Router();
 const { getAllAlerts, getAlerts, getHistory } = require("../data/store");
-const { runScan, runScanWithStream } = require("../services/scheduler");
+const { runManualScan, runScanWithStream } = require("../services/scheduler");
 
 const VALID = ["4h", "1d"];
 
@@ -38,16 +38,24 @@ router.get("/alerts/:tf", async (req, res) => {
 });
 
 // ── POST /api/scan/:tf ────────────────────────────────────────────────────────
+// MANUAL SCAN — fires runManualScan which skips Supabase save
 router.post("/scan/:tf", async (req, res) => {
   const { tf } = req.params;
   if (!VALID.includes(tf))
     return res.status(400).json({ success: false, error: `Use: ${VALID.join(", ")}` });
 
-  res.json({ success: true, message: `Scan started for ${tf}` });
-  runScan(tf).catch(console.error);
+  // Respond immediately, scan runs in background
+  res.json({
+    success: true,
+    message: `Manual scan started for ${tf} — results will appear in UI only (not saved to history)`,
+  });
+
+  // Run manual scan in background — no DB save
+  runManualScan(tf).catch(console.error);
 });
 
 // ── GET /api/scan/:tf/stream ─────────────────────────────────────────────────
+// STREAMING MANUAL SCAN — SSE events, no DB save
 router.get("/scan/:tf/stream", async (req, res) => {
   const { tf } = req.params;
   if (!VALID.includes(tf)) { res.status(400).end(); return; }
@@ -95,17 +103,23 @@ router.get("/history/:tf", async (req, res) => {
 
 // ── GET /api/status ───────────────────────────────────────────────────────────
 router.get("/status", async (req, res) => {
-  const { lastScan } = await getAllAlerts();
-  res.json({
-    success:    true,
-    status:     "online",
-    serverTime: new Date().toISOString(),
-    lastScan,
-    schedule: {
-      "4h": "1AM, 5AM, 9AM, 1PM, 5PM, 9PM UTC",
-      "1d": "8PM UTC daily",
-    },
-  });
+  try {
+    const { lastScan } = await getAllAlerts();
+    res.json({
+      success:    true,
+      status:     "online",
+      serverTime: new Date().toISOString(),
+      utcTime:    new Date().toUTCString(),
+      lastScan,
+      schedule: {
+        "4h": "AUTO scan at 1AM, 5AM, 9AM, 1PM, 5PM, 9PM UTC — saved to DB",
+        "1d": "AUTO scan at 8PM UTC daily — saved to DB",
+        manual: "Manual scans shown in UI only, NOT saved to history",
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 module.exports = router;
