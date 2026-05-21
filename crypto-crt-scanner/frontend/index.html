@@ -79,7 +79,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .log::-webkit-scrollbar-thumb{background:var(--bh);border-radius:2px}
 
 /* cards */
-.card{background:var(--card);border:1px solid var(--border);border-radius:9px;overflow:hidden;transition:transform .15s,border-color .2s}
+.card{background:#13161c;border:1px solid var(--border);border-radius:9px;overflow:hidden;transition:transform .15s,border-color .2s}
 .card:hover{transform:translateY(-1px);border-color:var(--bh)}
 .card.bull{border-left:3px solid var(--green)}
 .card.bear{border-left:3px solid var(--red)}
@@ -91,12 +91,12 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .dt{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
 .dt.bull{background:var(--gdim);color:var(--green)}
 .dt.bear{background:var(--rdim);color:var(--red)}
-.cb{padding:9px 11px;display:flex;flex-direction:column;gap:7px}
+.cb{padding:9px 11px;display:flex;flex-direction:column;gap:7px;color:#d4d9e8}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .s{display:flex;flex-direction:column;gap:1px}
-.sl{font-size:10px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}
-.sv{font-size:12px;color:var(--text);font-weight:500}
-.sv.bull{color:var(--green)}.sv.bear{color:var(--red)}.sv.blue{color:var(--blue)}
+.sl{font-size:10px;color:#3d4560;letter-spacing:.4px;text-transform:uppercase;display:block}
+.sv{font-size:12px;color:#d4d9e8 !important;font-weight:500;display:block}
+.sv.bull{color:#00e5a0 !important}.sv.bear{color:#ff4b6e !important}.sv.blue{color:#4d9fff !important}
 .cf{display:flex;align-items:center;justify-content:space-between;padding:7px 11px;border-top:1px solid var(--border);background:var(--bg,#0a0b0e)}
 .ft{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px}
 .fs{font-size:10px;color:var(--muted)}
@@ -347,9 +347,9 @@ function card(a, isNew) {
       row("Sweep Level", '<span class="sv ' + dc + '">$' + fmt(a.sweepLevel) + '</span>',
           "Now", bull ? "Below C1 High" : "Above C1 Low") +
     '</div>' +
-    '<div class="cf">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 11px;border-top:1px solid #1e2330;background:#0a0b0e">' +
       '<span class="ft">' + (a.timeframe || tf || "").toUpperCase() + ' PERP</span>' +
-      '<span class="fs">Scanned ' + time + '</span>' +
+      '<span style="font-size:10px;color:#3d4560">Scanned ' + time + '</span>' +
     '</div>' +
   '</div>';
 }
@@ -358,7 +358,12 @@ function row(l1, v1, l2, v2) {
   return '<div class="row">' + stat(l1, v1) + stat(l2, v2) + '</div>';
 }
 function stat(l, v) {
-  return '<div class="s"><span class="sl">' + l + '</span><span class="sv">' + v + '</span></div>';
+  var isHtml = v.indexOf('<span') === 0;
+  var val = isHtml ? v : '<span style="font-size:12px;color:#d4d9e8;font-weight:500">' + v + '</span>';
+  return '<div class="s">' +
+    '<span style="font-size:10px;color:#3d4560;text-transform:uppercase;display:block">' + l + '</span>' +
+    val +
+  '</div>';
 }
 
 // ─── SCAN ─────────────────────────────────────────────────────────────────────
