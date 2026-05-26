@@ -247,7 +247,8 @@ var DATA  = {"4h": [], "1d": []};
 var HIST  = [];
 var Q     = "";
 var CTAB  = "live";
-// SCAN tracks per-tf SSE state: null|"connecting"|"running"|"done"|"error"
+// SCAN tracks per-tf SSE state: null|"connecting"|"running"|"cooling"|"done"|"error"
+// "cooling" = scan just finished, block poll for a few seconds so DATA isn't overwritten
 var SCAN  = {"4h": null, "1d": null};
 // SSE EventSource references — kept so we can close them
 var ES    = {"4h": null, "1d": null};
@@ -304,13 +305,15 @@ function onApiDetected() {
   // FIXED: only start one poll interval, never start multiple
   if (!POLL_INTERVAL) {
     POLL_INTERVAL = setInterval(function() {
-      // FIXED: don't overwrite results while a scan is actively running
-      var anyRunning = SCAN["4h"] === "running" || SCAN["1d"] === "running";
-      if (!anyRunning) {
+      // Block poll while scan is running OR cooling down (just finished)
+      var blocked = ["running","connecting","cooling"].some(function(s) {
+        return SCAN["4h"] === s || SCAN["1d"] === s;
+      });
+      if (!blocked) {
         dbg("Auto-poll: fetching alerts…");
         fetchAlerts();
       } else {
-        dbg("Auto-poll: skipped — scan in progress");
+        dbg("Auto-poll: skipped — scan state:", SCAN["4h"], SCAN["1d"]);
       }
     }, 60000);
   }
@@ -327,20 +330,22 @@ function fetchAlerts() {
     .then(function(j) {
       if (!j || !j.success) throw new Error("bad response");
 
-      // FIXED: only update a panel's data if it's not currently scanning
+      // FIXED: only update a panel's data if it's not scanning or cooling
       var d = j.data;
-      if (SCAN["4h"] !== "running" && Array.isArray(d["4h"])) {
+      var block4h = SCAN["4h"] === "running" || SCAN["4h"] === "connecting" || SCAN["4h"] === "cooling";
+      var block1d = SCAN["1d"] === "running" || SCAN["1d"] === "connecting" || SCAN["1d"] === "cooling";
+      if (!block4h && Array.isArray(d["4h"])) {
         DATA["4h"] = d["4h"];
       }
-      if (SCAN["1d"] !== "running" && Array.isArray(d["1d"])) {
+      if (!block1d && Array.isArray(d["1d"])) {
         DATA["1d"] = d["1d"];
       }
 
       setOnline(true);
 
-      // FIXED: only render panels not currently being scanned
-      if (SCAN["4h"] !== "running") render("4h");
-      if (SCAN["1d"] !== "running") render("1d");
+      // FIXED: only render panels not currently being scanned or cooling
+      if (!block4h) render("4h");
+      if (!block1d) render("1d");
 
       setLast(d.lastScan);
 
@@ -380,14 +385,15 @@ function checkBackendScanState(scanState) {
 // ── RENDER ────────────────────────────────────────────────────────────────────
 function renderAll() { render("4h"); render("1d"); }
 
-function render(tf) {
+function render(tf, force) {
   var log = document.getElementById("l" + tf);
   var ct  = document.getElementById("c" + tf);
   if (!log) return;
 
-  // FIXED: don't wipe the panel while it's actively scanning
-  if (SCAN[tf] === "running") {
-    dbg("render(" + tf + ") skipped — scan in progress");
+  // Don't wipe the panel while actively scanning or cooling — UNLESS caller forces it
+  // (force=true is used by the complete handler which has already set DATA[tf])
+  if (!force && (SCAN[tf] === "running" || SCAN[tf] === "cooling")) {
+    dbg("render(" + tf + ") skipped — scan state:", SCAN[tf]);
     return;
   }
 
@@ -612,7 +618,7 @@ function doScan(tf) {
           var already = DATA[tf].some(function(x) { return x.id === ev.extra.alert.id; });
           if (!already) {
             DATA[tf].push(ev.extra.alert);
-            render(tf); // Update panel incrementally as finds come in
+            render(tf, true); // force=true — show cards as they're found during scan
           }
         }
         break;
@@ -627,16 +633,46 @@ function doScan(tf) {
         break;
 
       case "complete":
-        // Final event from backend with full results
-        dbg("SSE complete:", ev.found, "alerts");
-        if (Array.isArray(ev.alerts) && ev.alerts.length > 0) {
-          DATA[tf] = ev.alerts;
-        }
-        // Render final state
-        SCAN[tf] = "done";
+        // FIXED: ev.alerts is intentionally NOT sent by backend anymore.
+        // Embedding 300+ alerts in a single SSE message (~91KB) gets silently
+        // truncated by Render/nginx proxies — ev.alerts arrives undefined on the client.
+        // ev.found is just a number (safe). Always fetch results from /api/alerts/:tf.
+        dbg("SSE complete: found=" + ev.found + " — fetching results from /api/alerts/" + tf);
+        appendSseLog(tf, "✓ Scan done (" + ev.found + " found) — loading results…", "done");
+
+        // 1. Enter "cooling" — blocks poll + fetchAlerts from clobbering DATA[tf]
+        SCAN[tf] = "cooling";
         ES[tf] = null;
         es.close();
-        onScanComplete(tf, btn, ev.found || 0, false);
+
+        // 2. Fetch results directly — this hits manualCache which is fresh
+        fetch(API + "/alerts/" + tf)
+          .then(function(r) { return r.json(); })
+          .then(function(j2) {
+            if (j2.success && Array.isArray(j2.alerts)) {
+              DATA[tf] = j2.alerts;
+              dbg("Post-complete fetch OK: DATA[" + tf + "] =", DATA[tf].length, "items");
+            } else {
+              dbg("Post-complete fetch: empty/no alerts for", tf);
+              // Keep whatever "found" events accumulated in DATA[tf]
+            }
+          })
+          .catch(function(e) {
+            dbg("Post-complete fetch error:", e.message);
+            // Keep whatever "found" events accumulated in DATA[tf]
+          })
+          .finally(function() {
+            // 3. Render with confirmed data — force=true because SCAN[tf] is still "cooling"
+            render(tf, true);
+            onScanComplete(tf, btn, ev.found || DATA[tf].length, false);
+            // 4. Release cooling lock after short delay (lets render settle)
+            setTimeout(function() {
+              if (SCAN[tf] === "cooling") {
+                SCAN[tf] = "done";
+                dbg("Cooling released for", tf);
+              }
+            }, 2000);
+          });
         break;
 
       case "fatal":
@@ -680,7 +716,7 @@ function doScan(tf) {
 function pollForResults(tf, btn, attempt, maxAttempts) {
   if (attempt >= maxAttempts) {
     dbg("Polling timed out for", tf);
-    render(tf); // show whatever we have
+    render(tf, true); // force=true — show whatever we have
     onScanComplete(tf, btn, DATA[tf].length, false);
     return;
   }
@@ -716,7 +752,10 @@ function pollForResults(tf, btn, attempt, maxAttempts) {
 
 // ── SCAN COMPLETE ─────────────────────────────────────────────────────────────
 function onScanComplete(tf, btn, found, isError) {
-  SCAN[tf] = isError ? "error" : "done";
+  // Don't override "cooling" — that state is managed by the re-fetch timeout
+  if (SCAN[tf] !== "cooling") {
+    SCAN[tf] = isError ? "error" : "done";
+  }
 
   if (btn) {
     btn.disabled  = false;
@@ -726,7 +765,7 @@ function onScanComplete(tf, btn, found, isError) {
 
   setPanelScanning(tf, false);
   setPanelDone(tf, found, isError);
-  render(tf);
+  render(tf, true); // force=true — always show final results regardless of state
 
   if (isError) {
     setSt("✗ " + tf.toUpperCase() + " scan error — check logs", "err");
