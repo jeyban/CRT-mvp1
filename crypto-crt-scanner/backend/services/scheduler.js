@@ -1,176 +1,168 @@
 /**
- * scheduler.js
+ * scheduler.js — Cron Jobs + Scan Runner
  *
- * AUTO SCAN (saves to Supabase):
- *   4H → 1AM, 5AM, 9AM, 1PM, 5PM, 9PM UTC
- *   1D → 8PM UTC only
+ * FIXES:
+ *  1. isScanning flag is set/cleared via store.setScanning() with try/finally
+ *     → scan can never get stuck even if it throws
+ *  2. runScan()       = AUTO scan  → saves to Supabase via setAlerts()
+ *  3. runManualScan() = MANUAL scan → memory only via setMemoryOnly()
+ *  4. runScanWithStream() = SSE streaming manual scan
  *
- * MANUAL SCAN (does NOT save to Supabase):
- *   Triggered by scan buttons on dashboard
- *   Results shown in UI only, not stored in history
- *
- * Key fix: cron jobs use { timezone: "UTC" } to ensure
- * they fire at the correct time regardless of Render server timezone.
+ * Schedule (UTC):
+ *   4H → 1AM, 5AM, 9AM, 1PM, 5PM, 9PM
+ *   1D → 8PM daily
  */
 
-const cron = require("node-cron");
-const { fetchKlines, fetchPrice, getPairs } = require("./mexc");
-const { detectCRT } = require("./crtLogic");
-const { setAlerts } = require("../data/store");
+const cron                            = require("node-cron");
+const { getKlines, getPrice, getUsdtPairs, FALLBACK_PAIRS } = require("./mexc");
+const { detectCRT }                   = require("./crtLogic");
+const { setAlerts, setMemoryOnly, setScanning } = require("../data/store");
 
-const DELAY_MS = 200;
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+// Delay helper to avoid rate-limiting MEXC
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// ─── Core scan engine ─────────────────────────────────────────────────────────
-// saveToDb: true  = auto scan, results saved to Supabase
-// saveToDb: false = manual scan, results shown in UI only
-// emit: optional callback for SSE streaming (debug mode)
+// ── Core scan engine ──────────────────────────────────────────────────────────
+/**
+ * Scans all USDT pairs for a timeframe.
+ * @param {string}   tf       "4h" or "1d"
+ * @param {function} onAlert  optional callback(alert) for streaming
+ * @returns {Array}  alerts found
+ */
+async function scanAllPairs(tf, onAlert = null) {
+  let pairs;
+  try {
+    pairs = await getUsdtPairs();
+    if (!pairs.length) throw new Error("Empty pairs list");
+  } catch (err) {
+    console.warn("[Scheduler] getUsdtPairs failed, using fallback:", err.message);
+    pairs = FALLBACK_PAIRS;
+  }
 
-async function _scan(tf, saveToDb, emit) {
-  const debug = typeof emit === "function";
+  console.log(`[Scheduler] Scanning ${pairs.length} pairs on ${tf}...`);
 
-  const log = (type, symbol, msg, extra) => {
-    if (debug) emit({ type, symbol, tf, msg, extra, ts: Date.now() });
-    if (["found","error","save_error","start","done","store_saved"].includes(type)) {
-      console.log(`  [${tf.toUpperCase()}] ${symbol || "—"} — ${msg}`);
-    }
-  };
-
-  log("start", null, `${saveToDb ? "AUTO" : "MANUAL"} scan started — ${tf.toUpperCase()}`);
-
-  const pairs  = await getPairs();
   const alerts = [];
-  let scanned  = 0;
-  let errors   = 0;
-
-  log("start", null, `Scanning ${pairs.length} perpetual pairs…`);
 
   for (const symbol of pairs) {
     try {
-      log("scanning", symbol, `Scanning ${symbol}…`);
+      const [candles, price] = await Promise.all([
+        getKlines(symbol, tf, 10),
+        getPrice(symbol),
+      ]);
 
-      log("candles", symbol, `Fetching candles…`);
-      const candles = await fetchKlines(symbol, tf, 3);
-      if (!candles || candles.length < 2) {
-        log("skip", symbol, `No candle data`);
-        errors++;
-        await sleep(DELAY_MS);
-        continue;
-      }
+      if (!candles.length || !price) continue;
 
-      log("price", symbol, `Fetching live price…`);
-      const price = await fetchPrice(symbol);
-      if (!price) {
-        log("skip", symbol, `No price data`);
-        errors++;
-        await sleep(DELAY_MS);
-        continue;
-      }
-
-      log("checking", symbol, `Checking CRT setup…`);
       const alert = detectCRT(symbol, tf, candles, price);
 
       if (alert) {
         alerts.push(alert);
-        log("found", symbol,
-          `CRT FOUND → ${symbol} ${alert.direction}`,
-          { direction: alert.direction, price, alert }
-        );
-      } else {
-        log("clean", symbol, `No setup`);
+        console.log(`[Scheduler] ✅ ${tf} alert: ${symbol} ${alert.direction}`);
+        if (onAlert) onAlert(alert);
       }
-
-      scanned++;
     } catch (err) {
-      log("error", symbol, `Error → ${err.message}`);
-      errors++;
+      // Single symbol failure should never abort the whole scan
+      console.warn(`[Scheduler] ${symbol} error: ${err.message}`);
     }
 
-    await sleep(DELAY_MS);
+    await sleep(80); // 80ms between symbols — ~8s per 100 pairs
   }
-
-  // ── Only save to Supabase on AUTO scans ──────────────────────────────────
-  if (saveToDb) {
-    try {
-      await setAlerts(tf, alerts);
-      log("store_saved", null,
-        `Saved ${alerts.length} alerts to database (auto scan)`
-      );
-    } catch (storeErr) {
-      log("save_error", null,
-        `FAILED TO SAVE TO DB → ${storeErr.message}`
-      );
-    }
-  } else {
-    // Manual scan — update in-memory cache only so dashboard can show results
-    // but do NOT write to Supabase history
-    const { setMemoryOnly } = require("../data/store");
-    try {
-      setMemoryOnly(tf, alerts);
-      log("start", null,
-        `Manual scan — ${alerts.length} results shown in UI (not saved to history)`
-      );
-    } catch (e) {
-      // setMemoryOnly might not exist on older store, just continue
-    }
-  }
-
-  log("done", null,
-    `Scan complete — ${scanned} scanned, ${alerts.length} found, ${errors} errors`,
-    { scanned, found: alerts.length, errors }
-  );
 
   return alerts;
 }
 
-// ─── Public functions ─────────────────────────────────────────────────────────
-
-/** Auto scan — saves to Supabase. Called by cron and startup. */
+// ── runScan — AUTO scan, saves to Supabase ────────────────────────────────────
 async function runScan(tf) {
-  console.log(`\n🔍 [AUTO SCAN] ${tf.toUpperCase()} — ${new Date().toUTCString()}`);
-  const results = await _scan(tf, true, null);
-  console.log(`✅ [AUTO DONE] ${tf.toUpperCase()} — ${results.length} alerts saved to DB`);
-  return results;
+  console.log(`\n[Scheduler] ▶ AUTO scan starting: ${tf}`);
+  setScanning(tf, true);
+  try {
+    const alerts = await scanAllPairs(tf);
+    await setAlerts(tf, alerts);
+    console.log(`[Scheduler] ✅ AUTO scan done: ${tf} — ${alerts.length} alerts\n`);
+    return alerts;
+  } finally {
+    // Always clears isScanning even on crash
+    setScanning(tf, false);
+  }
 }
 
-/** Manual scan — does NOT save to Supabase. Called by scan buttons. */
+// ── runManualScan — MANUAL scan, memory only ──────────────────────────────────
 async function runManualScan(tf) {
-  console.log(`\n🔍 [MANUAL SCAN] ${tf.toUpperCase()} — ${new Date().toUTCString()}`);
-  const results = await _scan(tf, false, null);
-  console.log(`✅ [MANUAL DONE] ${tf.toUpperCase()} — ${results.length} alerts shown in UI only`);
-  return results;
+  console.log(`\n[Scheduler] ▶ MANUAL scan starting: ${tf}`);
+  setScanning(tf, true);
+  try {
+    const alerts = await scanAllPairs(tf);
+    setMemoryOnly(tf, alerts);
+    console.log(`[Scheduler] ✅ MANUAL scan done: ${tf} — ${alerts.length} alerts\n`);
+    return alerts;
+  } finally {
+    setScanning(tf, false);
+  }
 }
 
-/** Streaming scan — always manual (no DB save), emits events for debug UI */
-async function runScanWithStream(tf, emit) {
-  return _scan(tf, false, emit);
+// ── runScanWithStream — SSE streaming manual scan ────────────────────────────
+async function runScanWithStream(tf, send) {
+  let pairs;
+  try {
+    pairs = await getUsdtPairs();
+    if (!pairs.length) throw new Error("Empty pairs list");
+  } catch (err) {
+    console.warn("[Scheduler] getUsdtPairs failed, using fallback:", err.message);
+    pairs = FALLBACK_PAIRS;
+  }
+
+  send({ type: "start", tf, total: pairs.length, ts: Date.now() });
+
+  const alerts = [];
+  let scanned  = 0;
+
+  setScanning(tf, true);
+  try {
+    for (const symbol of pairs) {
+      scanned++;
+      try {
+        const [candles, price] = await Promise.all([
+          getKlines(symbol, tf, 10),
+          getPrice(symbol),
+        ]);
+
+        if (candles.length && price) {
+          const alert = detectCRT(symbol, tf, candles, price);
+          if (alert) {
+            alerts.push(alert);
+            send({ type: "alert", alert, ts: Date.now() });
+          }
+        }
+      } catch (err) {
+        send({ type: "skip", symbol, reason: err.message, ts: Date.now() });
+      }
+
+      send({ type: "progress", scanned, total: pairs.length, ts: Date.now() });
+      await sleep(80);
+    }
+
+    setMemoryOnly(tf, alerts);
+    send({ type: "done", count: alerts.length, ts: Date.now() });
+  } finally {
+    setScanning(tf, false);
+  }
+
+  return alerts;
 }
 
-// ─── Cron Scheduler ───────────────────────────────────────────────────────────
+// ── startScheduler — cron jobs ────────────────────────────────────────────────
 function startScheduler() {
-  console.log("⏰ Starting scheduler (UTC times)...");
-
-  // 4H scans: 1AM, 5AM, 9AM, 1PM, 5PM, 9PM UTC
-  // Cron: minute=0, hours=1,5,9,13,17,21
-  cron.schedule("0 1,5,9,13,17,21 * * *", () => {
-    const utcHour = new Date().getUTCHours();
-    console.log(`\n⏰ [CRON] 4H auto scan triggered at UTC hour ${utcHour}`);
-    runScan("4h").catch(console.error);
+  // 4H — every 4 hours at :00 (1AM, 5AM, 9AM, 1PM, 5PM, 9PM UTC)
+  cron.schedule("0 1,5,9,13,17,21 * * *", async () => {
+    await runScan("4h").catch(console.error);
   }, { timezone: "UTC" });
 
-  console.log("  • 4H: 1AM, 5AM, 9AM, 1PM, 5PM, 9PM UTC");
-
-  // 1D scan: 8PM UTC only — separate from 4H
-  // Cron: minute=0, hour=20
-  // Note: 9PM is already in the 4H schedule — 1D runs at its OWN time (8PM)
-  cron.schedule("0 20 * * *", () => {
-    const utcHour = new Date().getUTCHours();
-    console.log(`\n⏰ [CRON] 1D auto scan triggered at UTC hour ${utcHour}`);
-    runScan("1d").catch(console.error);
+  // 1D — 8PM UTC daily
+  cron.schedule("0 20 * * *", async () => {
+    await runScan("1d").catch(console.error);
   }, { timezone: "UTC" });
 
-  console.log("  • 1D: 8PM UTC daily");
-  console.log("  • Note: 4H and 1D run on completely separate schedules\n");
+  console.log("[Scheduler] Cron jobs registered");
+  console.log("  4H → 1AM, 5AM, 9AM, 1PM, 5PM, 9PM UTC");
+  console.log("  1D → 8PM UTC daily");
 }
 
-module.exports = { runScan, runManualScan, runScanWithStream, startScheduler };
+module.exports = { startScheduler, runScan, runManualScan, runScanWithStream };
