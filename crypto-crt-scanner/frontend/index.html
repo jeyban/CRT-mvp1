@@ -15,9 +15,10 @@ html,body{margin:0;padding:0;background:#0a0b0e;color:#d4d9e8;font-family:'JetBr
 .logo-text{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#fff}
 .logo-sub{font-size:10px;color:#6b7592;letter-spacing:2px;text-transform:uppercase}
 .meta{display:flex;align-items:center;gap:14px;font-size:11px;color:#6b7592}
-.dot{width:8px;height:8px;border-radius:50%;background:#3d4560;display:inline-block;margin-right:5px}
+.dot{width:8px;height:8px;border-radius:50%;background:#3d4560;display:inline-block;margin-right:5px;transition:background .3s}
 .dot.on{background:#00e5a0}
 .dot.off{background:#ff4b6e}
+.dot.warn{background:#f5a623}
 .sched{font-size:11px;color:#3d4560;padding:8px 0 2px;display:flex;gap:16px;flex-wrap:wrap}
 .tb{display:flex;align-items:center;gap:10px;padding:10px 0 4px;flex-wrap:wrap}
 .si{flex:1;min-width:180px;max-width:300px;position:relative}
@@ -26,30 +27,81 @@ html,body{margin:0;padding:0;background:#0a0b0e;color:#d4d9e8;font-family:'JetBr
 .si input:focus{border-color:#4d9fff}
 .si input::placeholder{color:#3d4560}
 .btns{display:flex;gap:7px;flex-wrap:wrap}
-.btn{background:#0f1115;border:1px solid #1e2330;border-radius:6px;color:#6b7592;font-family:'JetBrains Mono',monospace;font-size:12px;padding:7px 14px;cursor:pointer}
+.btn{background:#0f1115;border:1px solid #1e2330;border-radius:6px;color:#6b7592;font-family:'JetBrains Mono',monospace;font-size:12px;padding:7px 14px;cursor:pointer;transition:all .2s}
 .btn:hover:not(:disabled){background:rgba(77,159,255,.1);border-color:#4d9fff;color:#4d9fff}
 .btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.scanning{border-color:#f5a623;color:#f5a623;background:rgba(245,166,35,.07)}
 .tabs{display:flex;gap:2px;border-bottom:1px solid #1e2330;margin:6px 0 12px}
 .tab{padding:7px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#6b7592;cursor:pointer;border:none;border-bottom:2px solid transparent;background:none}
 .tab:hover{color:#d4d9e8}
 .tab.on{color:#4d9fff;border-bottom-color:#4d9fff}
-.st{font-size:11px;padding:2px 0 8px;color:#3d4560;min-height:18px}
-.st.live{color:#4d9fff}
-.st.done{color:#00e5a0}
-.st.err{color:#ff4b6e}
+
+/* Status bar */
+.stbar{font-size:11px;padding:4px 0 8px;min-height:22px;display:flex;align-items:center;gap:8px}
+.stbar .stmsg{transition:color .2s}
+.stbar .stmsg.live{color:#4d9fff}
+.stbar .stmsg.done{color:#00e5a0}
+.stbar .stmsg.err{color:#ff4b6e}
+.stbar .stmsg.warn{color:#f5a623}
+.stbar .stmsg.idle{color:#3d4560}
+
 .panels{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:680px){.panels{grid-template-columns:1fr}}
-.panel{background:#0f1115;border:1px solid #1e2330;border-radius:11px;overflow:hidden}
+.panel{background:#0f1115;border:1px solid #1e2330;border-radius:11px;overflow:hidden;position:relative}
+
+/* Panel scanning overlay */
+.panel-scanning-bar{
+  position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,#f5a623,transparent);
+  background-size:200% 100%;
+  animation:sweep 1.4s linear infinite;
+  display:none;
+  z-index:10;
+}
+.panel-scanning-bar.active{display:block}
+@keyframes sweep{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
 .ph{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:1px solid #1e2330;background:#13161c}
 .tf{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;color:#fff}
 .tfd{font-size:10px;color:#3d4560;letter-spacing:1px}
+.panel-status{font-size:10px;padding:2px 8px;border-radius:10px;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.panel-status.scanning{background:rgba(245,166,35,.12);color:#f5a623;border:1px solid rgba(245,166,35,.25)}
+.panel-status.done{background:rgba(0,229,160,.1);color:#00e5a0;border:1px solid rgba(0,229,160,.2)}
+.panel-status.empty{background:#0a0b0e;color:#3d4560;border:1px solid #1e2330}
+.panel-status.error{background:rgba(255,75,110,.1);color:#ff4b6e;border:1px solid rgba(255,75,110,.2)}
+
 .badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;font-family:'JetBrains Mono',monospace}
 .badge.on{background:rgba(0,229,160,.1);color:#00e5a0;border:1px solid rgba(0,229,160,.2)}
 .badge.off{background:#0a0b0e;color:#6b7592;border:1px solid #1e2330}
+
+/* Panel sub-status row */
+.panel-sub{font-size:10px;color:#3d4560;padding:4px 15px 0;min-height:18px;display:flex;align-items:center;gap:6px}
+.panel-sub.scanning{color:#f5a623}
+
 .log{padding:10px;display:flex;flex-direction:column;gap:8px;max-height:68vh;overflow-y:auto}
 .log::-webkit-scrollbar{width:3px}
 .log::-webkit-scrollbar-thumb{background:#2a3045;border-radius:2px}
 .empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:30px 16px;color:#6b7592;text-align:center}
+
+/* SSE log panel */
+.sselog{background:#0a0b0e;border-top:1px solid #1e2330;padding:8px 12px;max-height:120px;overflow-y:auto;font-size:10px;color:#3d4560;display:none}
+.sselog.active{display:block}
+.sselog::-webkit-scrollbar{width:3px}
+.sselog::-webkit-scrollbar-thumb{background:#2a3045;border-radius:2px}
+.sse-line{padding:1px 0;line-height:1.5}
+.sse-line.found{color:#00e5a0}
+.sse-line.error{color:#ff4b6e}
+.sse-line.start,.sse-line.done{color:#4d9fff}
+.sse-line.scanning{color:#6b7592}
+
+/* Progress bar */
+.progress-wrap{padding:4px 15px 6px;display:none}
+.progress-wrap.active{display:block}
+.progress-bg{background:#1e2330;border-radius:3px;height:3px;overflow:hidden}
+.progress-fill{height:100%;background:#f5a623;border-radius:3px;transition:width .3s;width:0%}
+.progress-label{font-size:10px;color:#3d4560;margin-top:3px}
+
+/* History panel */
 .hw{background:#0f1115;border:1px solid #1e2330;border-radius:11px;overflow:hidden}
 .htb{display:flex;align-items:center;gap:8px;padding:10px 13px;border-bottom:1px solid #1e2330;flex-wrap:wrap}
 .htb select{background:#13161c;border:1px solid #1e2330;border-radius:5px;color:#d4d9e8;font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 8px;outline:none;cursor:pointer}
@@ -63,10 +115,12 @@ th{padding:7px 10px;text-align:left;font-size:10px;color:#3d4560;letter-spacing:
 td{padding:8px 10px;border-bottom:1px solid #1e2330;color:#6b7592;vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(255,255,255,.015)}
+
 .toast{position:fixed;bottom:20px;right:20px;padding:10px 16px;border-radius:7px;font-family:'JetBrains Mono',monospace;font-size:12px;transform:translateY(16px);opacity:0;transition:all .3s;z-index:9999;max-width:280px}
 .toast.ok{background:rgba(0,229,160,.1);border:1px solid #00e5a0;color:#00e5a0}
 .toast.err{background:rgba(255,75,110,.1);border:1px solid #ff4b6e;color:#ff4b6e}
 .toast.info{background:rgba(77,159,255,.1);border:1px solid #4d9fff;color:#4d9fff}
+.toast.warn{background:rgba(245,166,35,.1);border:1px solid #f5a623;color:#f5a623}
 .toast.show{transform:translateY(0);opacity:1}
 </style>
 </head>
@@ -105,7 +159,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
   </div>
 </div>
 
-<div class="st" id="st">Loading data…</div>
+<div class="stbar">
+  <span class="stmsg idle" id="stmsg">Loading data…</span>
+</div>
 
 <div class="tabs">
   <button class="tab on" id="tl" onclick="switchTab('live')">Live Results</button>
@@ -114,24 +170,49 @@ tr:hover td{background:rgba(255,255,255,.015)}
 
 <div id="vl">
   <div class="panels">
-    <div class="panel">
+
+    <!-- 4H Panel -->
+    <div class="panel" id="panel4h">
+      <div class="panel-scanning-bar" id="scanbar4h"></div>
       <div class="ph">
         <div><div class="tf">4H</div><div class="tfd">PERP · AUTO 6×/DAY</div></div>
-        <span class="badge off" id="c4h">0</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="panel-status empty" id="pst4h">Ready</span>
+          <span class="badge off" id="c4h">0</span>
+        </div>
+      </div>
+      <div class="panel-sub" id="psub4h"></div>
+      <div class="progress-wrap" id="prog4h">
+        <div class="progress-bg"><div class="progress-fill" id="progfill4h"></div></div>
+        <div class="progress-label" id="proglbl4h"></div>
       </div>
       <div class="log" id="l4h">
         <div class="empty"><span style="font-size:28px">⏳</span><p>Fetching data…</p></div>
       </div>
+      <div class="sselog" id="slog4h"></div>
     </div>
-    <div class="panel">
+
+    <!-- 1D Panel -->
+    <div class="panel" id="panel1d">
+      <div class="panel-scanning-bar" id="scanbar1d"></div>
       <div class="ph">
         <div><div class="tf">1D</div><div class="tfd">PERP · AUTO 8PM UTC</div></div>
-        <span class="badge off" id="c1d">0</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="panel-status empty" id="pst1d">Ready</span>
+          <span class="badge off" id="c1d">0</span>
+        </div>
+      </div>
+      <div class="panel-sub" id="psub1d"></div>
+      <div class="progress-wrap" id="prog1d">
+        <div class="progress-bg"><div class="progress-fill" id="progfill1d"></div></div>
+        <div class="progress-label" id="proglbl1d"></div>
       </div>
       <div class="log" id="l1d">
         <div class="empty"><span style="font-size:28px">⏳</span><p>Fetching data…</p></div>
       </div>
+      <div class="sselog" id="slog1d"></div>
     </div>
+
   </div>
 </div>
 
@@ -153,50 +234,91 @@ tr:hover td{background:rgba(255,255,255,.015)}
   </div>
 </div>
 
-</div>
+</div><!-- .wrap -->
 
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-// Try proxy first (/api), fall back to direct URL if proxy fails
 var API_PROXY  = "/api";
 var API_DIRECT = "https://crt-mvp1.onrender.com/api";
-var API        = API_PROXY; // start with proxy
+var API        = API_PROXY;
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-var DATA  = {"4h":[], "1d":[]};
+var DATA  = {"4h": [], "1d": []};
 var HIST  = [];
 var Q     = "";
 var CTAB  = "live";
-var SCAN  = {"4h":false,"1d":false};
-var RETRY = 0;
-var MAXR  = 20;
+// SCAN tracks per-tf SSE state: null|"connecting"|"running"|"done"|"error"
+var SCAN  = {"4h": null, "1d": null};
+// SSE EventSource references — kept so we can close them
+var ES    = {"4h": null, "1d": null};
+// Progress counters from SSE
+var PROG  = {"4h": {scanned:0,total:0,found:0}, "1d": {scanned:0,total:0,found:0}};
+// Whether backend has confirmed it's online
+var ONLINE = false;
+// Auto-refresh interval reference
+var POLL_INTERVAL = null;
+// API detection done flag
+var API_DETECTED = false;
 
-// ── BOOT: detect which API works ──────────────────────────────────────────────
+var dbg = function() {
+  if (typeof console !== "undefined") {
+    console.log.apply(console, ["[CRT]"].concat(Array.prototype.slice.call(arguments)));
+  }
+};
+
+// ── BOOT: detect which API works, then start polling ─────────────────────────
 function boot() {
-  // Try proxy first
-  fetch(API_PROXY + "/status")
+  dbg("Boot: detecting API endpoint…");
+  setSt("Connecting to backend…", "live");
+
+  fetch(API_PROXY + "/status", {signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined})
     .then(function(r) {
-      if (r.ok) {
-        API = API_PROXY;
-        console.log("Using proxy API:", API);
-        fetchAlerts();
-        setInterval(fetchAlerts, 60000);
-      } else {
-        throw new Error("proxy not ok: " + r.status);
-      }
+      if (!r.ok) throw new Error("proxy status " + r.status);
+      API = API_PROXY;
+      API_DETECTED = true;
+      dbg("Using proxy API:", API);
+      onApiDetected();
     })
-    .catch(function() {
-      // Proxy failed, use direct URL
-      API = API_DIRECT;
-      console.log("Proxy failed, using direct API:", API);
-      fetchAlerts();
-      setInterval(fetchAlerts, 60000);
+    .catch(function(e) {
+      dbg("Proxy failed (" + e.message + "), trying direct…");
+      fetch(API_DIRECT + "/status")
+        .then(function(r) {
+          if (!r.ok) throw new Error("direct status " + r.status);
+          API = API_DIRECT;
+          API_DETECTED = true;
+          dbg("Using direct API:", API);
+          onApiDetected();
+        })
+        .catch(function(e2) {
+          dbg("Both APIs failed:", e2.message);
+          setOnline(false);
+          setSt("Cannot reach backend — retrying in 15s", "err");
+          setTimeout(boot, 15000);
+        });
     });
+}
+
+function onApiDetected() {
+  setOnline(true);
+  fetchAlerts();
+  // FIXED: only start one poll interval, never start multiple
+  if (!POLL_INTERVAL) {
+    POLL_INTERVAL = setInterval(function() {
+      // FIXED: don't overwrite results while a scan is actively running
+      var anyRunning = SCAN["4h"] === "running" || SCAN["1d"] === "running";
+      if (!anyRunning) {
+        dbg("Auto-poll: fetching alerts…");
+        fetchAlerts();
+      } else {
+        dbg("Auto-poll: skipped — scan in progress");
+      }
+    }, 60000);
+  }
 }
 
 // ── FETCH ALERTS ──────────────────────────────────────────────────────────────
 function fetchAlerts() {
-  setSt("Fetching alerts…", "live");
+  dbg("fetchAlerts()");
   fetch(API + "/alerts")
     .then(function(r) {
       if (!r.ok) throw new Error("HTTP " + r.status);
@@ -204,31 +326,55 @@ function fetchAlerts() {
     })
     .then(function(j) {
       if (!j || !j.success) throw new Error("bad response");
-      DATA["4h"] = Array.isArray(j.data["4h"]) ? j.data["4h"] : [];
-      DATA["1d"] = Array.isArray(j.data["1d"]) ? j.data["1d"] : [];
-      RETRY = 0;
+
+      // FIXED: only update a panel's data if it's not currently scanning
+      var d = j.data;
+      if (SCAN["4h"] !== "running" && Array.isArray(d["4h"])) {
+        DATA["4h"] = d["4h"];
+      }
+      if (SCAN["1d"] !== "running" && Array.isArray(d["1d"])) {
+        DATA["1d"] = d["1d"];
+      }
+
       setOnline(true);
-      renderAll();
-      setLast(j.data.lastScan);
-      setSt("Ready — " + DATA["4h"].length + " 4H alerts, " + DATA["1d"].length + " 1D alerts", "done");
+
+      // FIXED: only render panels not currently being scanned
+      if (SCAN["4h"] !== "running") render("4h");
+      if (SCAN["1d"] !== "running") render("1d");
+
+      setLast(d.lastScan);
+
+      // Check if backend is reporting an active scan
+      if (d.scanState) {
+        checkBackendScanState(d.scanState);
+      }
+
+      var total = DATA["4h"].length + DATA["1d"].length;
+      if (SCAN["4h"] !== "running" && SCAN["1d"] !== "running") {
+        setSt(
+          total > 0
+            ? "Ready — " + DATA["4h"].length + " 4H · " + DATA["1d"].length + " 1D setups"
+            : "Ready — no CRT setups currently active",
+          total > 0 ? "done" : "idle"
+        );
+      }
     })
     .catch(function(e) {
-      console.error("[fetchAlerts]", e.message);
-      // If proxy failed, switch to direct
-      if (API === API_PROXY) {
-        console.log("Switching to direct API");
-        API = API_DIRECT;
-        setTimeout(fetchAlerts, 1000);
-        return;
-      }
+      dbg("fetchAlerts error:", e.message);
       setOnline(false);
-      setSt("Error: " + e.message, "err");
-      if (RETRY < MAXR) {
-        RETRY++;
-        setSt("Retrying (" + RETRY + "/" + MAXR + ")…", "live");
-        setTimeout(fetchAlerts, 10000);
-      }
+      setSt("Connection error: " + e.message, "err");
     });
+}
+
+// Check if backend reports a running scan and reflect it in UI
+function checkBackendScanState(scanState) {
+  ["4h","1d"].forEach(function(tf) {
+    var s = scanState[tf];
+    if (s && s.running && SCAN[tf] !== "running") {
+      dbg("Backend reports " + tf + " scan running — updating UI");
+      setPanelScanning(tf, true, s.type + " scan in progress…");
+    }
+  });
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
@@ -239,17 +385,33 @@ function render(tf) {
   var ct  = document.getElementById("c" + tf);
   if (!log) return;
 
+  // FIXED: don't wipe the panel while it's actively scanning
+  if (SCAN[tf] === "running") {
+    dbg("render(" + tf + ") skipped — scan in progress");
+    return;
+  }
+
   var list = (DATA[tf] || []).filter(function(a) {
     if (!Q) return true;
     return a.symbol && a.symbol.toLowerCase().indexOf(Q.toLowerCase()) !== -1;
   });
 
-  if (ct) { ct.textContent = list.length; ct.className = "badge " + (list.length > 0 ? "on" : "off"); }
+  if (ct) {
+    ct.textContent = list.length;
+    ct.className   = "badge " + (list.length > 0 ? "on" : "off");
+  }
 
   if (list.length === 0) {
-    log.innerHTML = '<div class="empty"><span style="font-size:28px">📭</span><p style="color:#6b7592">' +
-      (Q ? "No results match search." : "No CRT setups found.") +
-      '</p><small style="color:#3d4560">Run a scan or wait for auto schedule.</small></div>';
+    // FIXED: show contextual message based on whether a scan has ever run
+    var msg = Q
+      ? "No results match search."
+      : "No CRT setups found.";
+    var hint = Q
+      ? ""
+      : "<small style='color:#3d4560'>Run a scan or wait for auto schedule.</small>";
+    log.innerHTML =
+      '<div class="empty"><span style="font-size:28px">📭</span>' +
+      '<p style="color:#6b7592">' + msg + '</p>' + hint + '</div>';
     return;
   }
 
@@ -260,19 +422,17 @@ function render(tf) {
   log.innerHTML = html;
 }
 
-// ── CARD: 100% inline styles, no CSS classes for colors ──────────────────────
+// ── CARD ──────────────────────────────────────────────────────────────────────
 function buildCard(a) {
-  var bull  = (a.direction||"").toUpperCase() === "BULLISH";
-  var sym   = (a.symbol||"?").replace(/_USDT$/,"").replace(/USDT$/,"");
-  var time  = a.timestamp ? new Date(a.timestamp).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "—";
+  var bull  = (a.direction || "").toUpperCase() === "BULLISH";
+  var sym   = (a.symbol || "?").replace(/_USDT$/, "").replace(/USDT$/, "");
+  var time  = a.timestamp ? new Date(a.timestamp).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : "—";
   var lbdr  = bull ? "3px solid #00e5a0" : "3px solid #ff4b6e";
   var clr   = bull ? "#00e5a0" : "#ff4b6e";
   var bgbdg = bull ? "rgba(0,229,160,.12)" : "rgba(255,75,110,.12)";
   var lbl   = bull ? "▲ Bullish CRT" : "▼ Bearish CRT";
 
   return '<div style="background:#13161c;border:1px solid #1e2330;border-left:' + lbdr + ';border-radius:9px;overflow:hidden">' +
-
-    // Header
     '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid #1e2330">' +
       '<div>' +
         '<span style="font-family:Syne,sans-serif;font-size:15px;font-weight:800;color:#ffffff">' + sym + '</span>' +
@@ -280,61 +440,28 @@ function buildCard(a) {
       '</div>' +
       '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:' + bgbdg + ';color:' + clr + '">' + lbl + '</span>' +
     '</div>' +
-
-    // Body
     '<div style="padding:10px 12px">' +
-      // Row 1
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">' +
-        '<div>' +
-          '<div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">Current Price</div>' +
-          '<div style="font-size:12px;font-weight:600;color:#4d9fff">$' + fmt(a.currentPrice) + '</div>' +
-        '</div>' +
-        '<div>' +
-          '<div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">' + (bull?"Swept Above":"Swept Below") + '</div>' +
-          '<div style="font-size:12px;font-weight:600;color:#d4d9e8">$' + fmt(bull?a.c1High:a.c1Low) + '</div>' +
-        '</div>' +
+        '<div><div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">Current Price</div><div style="font-size:12px;font-weight:600;color:#4d9fff">$' + fmt(a.currentPrice) + '</div></div>' +
+        '<div><div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">' + (bull ? "Swept Above" : "Swept Below") + '</div><div style="font-size:12px;font-weight:600;color:#d4d9e8">$' + fmt(bull ? a.c1High : a.c1Low) + '</div></div>' +
       '</div>' +
-      // Row 2
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">' +
-        '<div>' +
-          '<div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">C1 High</div>' +
-          '<div style="font-size:12px;font-weight:600;color:#d4d9e8">$' + fmt(a.c1High) + '</div>' +
-        '</div>' +
-        '<div>' +
-          '<div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">C1 Low</div>' +
-          '<div style="font-size:12px;font-weight:600;color:#d4d9e8">$' + fmt(a.c1Low) + '</div>' +
-        '</div>' +
+        '<div><div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">C1 High</div><div style="font-size:12px;font-weight:600;color:#d4d9e8">$' + fmt(a.c1High) + '</div></div>' +
+        '<div><div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">C1 Low</div><div style="font-size:12px;font-weight:600;color:#d4d9e8">$' + fmt(a.c1Low) + '</div></div>' +
       '</div>' +
-      // Row 3
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">' +
-        '<div>' +
-          '<div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">C2 High</div>' +
-          '<div style="font-size:12px;font-weight:600;color:#d4d9e8">$' + fmt(a.c2High) + '</div>' +
-        '</div>' +
-        '<div>' +
-          '<div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">C2 Low</div>' +
-          '<div style="font-size:12px;font-weight:600;color:#d4d9e8">$' + fmt(a.c2Low) + '</div>' +
-        '</div>' +
+        '<div><div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">C2 High</div><div style="font-size:12px;font-weight:600;color:#d4d9e8">$' + fmt(a.c2High) + '</div></div>' +
+        '<div><div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">C2 Low</div><div style="font-size:12px;font-weight:600;color:#d4d9e8">$' + fmt(a.c2Low) + '</div></div>' +
       '</div>' +
-      // Row 4
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
-        '<div>' +
-          '<div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">Sweep Level</div>' +
-          '<div style="font-size:12px;font-weight:600;color:' + clr + '">$' + fmt(a.sweepLevel) + '</div>' +
-        '</div>' +
-        '<div>' +
-          '<div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">Position Now</div>' +
-          '<div style="font-size:12px;font-weight:600;color:#d4d9e8">' + (bull?"Below C1 High":"Above C1 Low") + '</div>' +
-        '</div>' +
+        '<div><div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">Sweep Level</div><div style="font-size:12px;font-weight:600;color:' + clr + '">$' + fmt(a.sweepLevel) + '</div></div>' +
+        '<div><div style="font-size:10px;color:#3d4560;text-transform:uppercase;margin-bottom:2px">Position Now</div><div style="font-size:12px;font-weight:600;color:#d4d9e8">' + (bull ? "Below C1 High" : "Above C1 Low") + '</div></div>' +
       '</div>' +
     '</div>' +
-
-    // Footer
     '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-top:1px solid #1e2330;background:#0a0b0e">' +
-      '<span style="font-size:10px;color:#3d4560;letter-spacing:1px;font-weight:700">' + (a.timeframe||"").toUpperCase() + ' PERP</span>' +
+      '<span style="font-size:10px;color:#3d4560;letter-spacing:1px;font-weight:700">' + (a.timeframe || "").toUpperCase() + ' PERP</span>' +
       '<span style="font-size:10px;color:#3d4560">Scanned ' + time + '</span>' +
     '</div>' +
-
   '</div>';
 }
 
@@ -349,144 +476,375 @@ function fmt(n) {
   return n.toFixed(2);
 }
 
-// ── SCAN ──────────────────────────────────────────────────────────────────────
-function doScan(tf) {
-  if (SCAN[tf]) { toast("Scan already running…","info"); return; }
-  var btn = document.getElementById("b"+tf);
-  SCAN[tf] = true;
-  if (btn) { btn.disabled=true; btn.textContent="Scanning…"; }
-  setSt("Manual " + tf.toUpperCase() + " scan started…","live");
+// ── PANEL SCANNING STATE ──────────────────────────────────────────────────────
+function setPanelScanning(tf, active, msg) {
+  var bar  = document.getElementById("scanbar" + tf);
+  var pst  = document.getElementById("pst" + tf);
+  var psub = document.getElementById("psub" + tf);
+  var prog = document.getElementById("prog" + tf);
+  var slog = document.getElementById("slog" + tf);
 
-  fetch(API + "/scan/" + tf, {method:"POST",headers:{"Content-Type":"application/json"}})
-    .then(function(r){return r.json();})
-    .then(function(j){
-      if (!j.success) throw new Error(j.error||"failed");
-      toast(tf.toUpperCase() + " scan running — polling for results…","info");
-      var n=0, max=12;
-      var t = setInterval(function(){
-        n++;
-        setSt("Waiting for "+tf.toUpperCase()+" results… ("+n+"/"+max+")","live");
-        fetch(API+"/alerts/"+tf)
-          .then(function(r){return r.json();})
-          .then(function(j2){
-            if (j2.success && j2.alerts && j2.alerts.length > 0) {
-              DATA[tf] = j2.alerts;
-              render(tf);
-              clearInterval(t);
-              scanDone(tf, btn, j2.alerts.length);
-            } else if (n >= max) {
-              DATA[tf] = j2.alerts || [];
-              render(tf);
-              clearInterval(t);
-              scanDone(tf, btn, DATA[tf].length);
-            }
-          })
-          .catch(function(){ if(n>=max){clearInterval(t);scanDone(tf,btn,0);} });
-      }, 15000);
-    })
-    .catch(function(e){toast("Scan error: "+e.message,"err");scanDone(tf,btn,-1);});
+  if (active) {
+    if (bar)  { bar.className  = "panel-scanning-bar active"; }
+    if (pst)  { pst.className  = "panel-status scanning"; pst.textContent = "⟳ Scanning"; }
+    if (psub) { psub.className = "panel-sub scanning"; psub.textContent = msg || "Scanning…"; }
+    if (prog) { prog.className = "progress-wrap active"; }
+    if (slog) { slog.className = "sselog active"; }
+  } else {
+    if (bar)  { bar.className  = "panel-scanning-bar"; }
+    if (prog) { prog.className = "progress-wrap"; }
+  }
 }
 
-function scanDone(tf, btn, n) {
-  SCAN[tf]=false;
-  if (btn){btn.disabled=false;btn.textContent="Scan "+tf.toUpperCase();}
-  if (n>0)       setSt("✓ "+tf.toUpperCase()+" done — "+n+" setups (not saved to history)","done");
-  else if (n===0) setSt("✓ "+tf.toUpperCase()+" done — no setups found","done");
-  else            setSt("✗ "+tf.toUpperCase()+" scan error","err");
+function setPanelDone(tf, found, isError) {
+  var pst  = document.getElementById("pst" + tf);
+  var psub = document.getElementById("psub" + tf);
+
+  if (isError) {
+    if (pst)  { pst.className  = "panel-status error"; pst.textContent = "Error"; }
+    if (psub) { psub.className = "panel-sub"; psub.textContent = "Scan encountered an error"; }
+  } else if (found > 0) {
+    if (pst)  { pst.className  = "panel-status done"; pst.textContent = "✓ " + found + " found"; }
+    if (psub) { psub.className = "panel-sub"; psub.textContent = "Scan complete — " + found + " CRT setups"; }
+  } else {
+    if (pst)  { pst.className  = "panel-status empty"; pst.textContent = "No setups"; }
+    if (psub) { psub.className = "panel-sub"; psub.textContent = "Scan complete — no CRT setups found"; }
+  }
+}
+
+function updateProgress(tf, scanned, total, found) {
+  var fill  = document.getElementById("progfill" + tf);
+  var label = document.getElementById("proglbl" + tf);
+  var pct   = total > 0 ? Math.round((scanned / total) * 100) : 0;
+  if (fill)  fill.style.width = pct + "%";
+  if (label) label.textContent = scanned + " / " + total + " pairs scanned · " + found + " found";
+
+  var psub = document.getElementById("psub" + tf);
+  if (psub) psub.textContent = "Scanning… " + scanned + "/" + total + " · " + found + " CRT found";
+}
+
+function appendSseLog(tf, line, cls) {
+  var slog = document.getElementById("slog" + tf);
+  if (!slog) return;
+  var el = document.createElement("div");
+  el.className = "sse-line " + (cls || "");
+  el.textContent = line;
+  slog.appendChild(el);
+  slog.scrollTop = slog.scrollHeight;
+  // Keep max 200 lines
+  var lines = slog.querySelectorAll(".sse-line");
+  if (lines.length > 200) lines[0].remove();
+}
+
+function clearSseLog(tf) {
+  var slog = document.getElementById("slog" + tf);
+  if (slog) slog.innerHTML = "";
+}
+
+// ── SCAN via SSE stream ───────────────────────────────────────────────────────
+// FIXED: uses SSE EventSource for real-time progress instead of blind polling
+function doScan(tf) {
+  if (SCAN[tf] === "running" || SCAN[tf] === "connecting") {
+    toast("Scan already running for " + tf.toUpperCase() + "…", "warn");
+    return;
+  }
+
+  // Close any existing EventSource
+  if (ES[tf]) {
+    try { ES[tf].close(); } catch(_) {}
+    ES[tf] = null;
+  }
+
+  var btn = document.getElementById("b" + tf);
+  SCAN[tf] = "connecting";
+  PROG[tf] = {scanned: 0, total: 0, found: 0};
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Scanning…";
+    btn.className = "btn scanning";
+  }
+
+  clearSseLog(tf);
+  setPanelScanning(tf, true, "Connecting to scan stream…");
+  setSt("Manual " + tf.toUpperCase() + " scan starting…", "live");
+
+  // FIXED: use SSE stream endpoint for real-time progress
+  var url = API + "/scan/" + tf + "/stream";
+  dbg("Opening SSE stream:", url);
+
+  var es = new EventSource(url);
+  ES[tf] = es;
+
+  es.onopen = function() {
+    dbg("SSE open:", tf);
+    SCAN[tf] = "running";
+    setPanelScanning(tf, true, "Scan stream connected…");
+    appendSseLog(tf, "Stream connected…", "start");
+  };
+
+  es.onmessage = function(e) {
+    var ev;
+    try { ev = JSON.parse(e.data); } catch(_) { return; }
+
+    dbg("SSE event:", ev.type, ev.symbol || "", ev.msg || "");
+
+    switch (ev.type) {
+      case "start":
+        appendSseLog(tf, "▶ " + (ev.msg || "Scan started"), "start");
+        setSt("Scanning " + tf.toUpperCase() + " — " + (ev.msg || ""), "live");
+        // Extract total pairs count from message
+        var match = ev.msg && ev.msg.match(/(\d+) pairs/);
+        if (match) PROG[tf].total = parseInt(match[1]);
+        break;
+
+      case "scanning":
+        // High-frequency event — only update progress bar, don't log each one
+        PROG[tf].scanned++;
+        updateProgress(tf, PROG[tf].scanned, PROG[tf].total, PROG[tf].found);
+        break;
+
+      case "found":
+        PROG[tf].found++;
+        appendSseLog(tf, "✓ FOUND: " + (ev.symbol || "") + " " + (ev.extra && ev.extra.direction || ""), "found");
+        // Add to DATA immediately so it shows up if scan takes long
+        if (ev.extra && ev.extra.alert) {
+          var already = DATA[tf].some(function(x) { return x.id === ev.extra.alert.id; });
+          if (!already) {
+            DATA[tf].push(ev.extra.alert);
+            render(tf); // Update panel incrementally as finds come in
+          }
+        }
+        break;
+
+      case "error":
+        appendSseLog(tf, "✗ ERR: " + (ev.symbol || "") + " — " + (ev.msg || ""), "error");
+        break;
+
+      case "done":
+        appendSseLog(tf, "✓ " + (ev.msg || "Done"), "done");
+        setSt(tf.toUpperCase() + " scan finishing…", "live");
+        break;
+
+      case "complete":
+        // Final event from backend with full results
+        dbg("SSE complete:", ev.found, "alerts");
+        if (Array.isArray(ev.alerts) && ev.alerts.length > 0) {
+          DATA[tf] = ev.alerts;
+        }
+        // Render final state
+        SCAN[tf] = "done";
+        ES[tf] = null;
+        es.close();
+        onScanComplete(tf, btn, ev.found || 0, false);
+        break;
+
+      case "fatal":
+        dbg("SSE fatal:", ev.msg);
+        appendSseLog(tf, "✗ FATAL: " + (ev.msg || "Unknown error"), "error");
+        SCAN[tf] = "error";
+        ES[tf] = null;
+        es.close();
+        onScanComplete(tf, btn, -1, true);
+        break;
+
+      case "store_saved":
+        appendSseLog(tf, "💾 " + (ev.msg || "Saved"), "done");
+        break;
+
+      default:
+        // skip noisy "clean", "candles", "price", "checking" events
+        break;
+    }
+  };
+
+  es.onerror = function(e) {
+    dbg("SSE error:", e);
+    // If we haven't received a complete event yet, the scan may still be running
+    if (SCAN[tf] === "running" || SCAN[tf] === "connecting") {
+      appendSseLog(tf, "Stream interrupted — scan may still be running on server", "error");
+      setSt("Stream disconnected — results will appear when scan finishes", "warn");
+      toast("SSE stream interrupted. Polling for results…", "warn");
+
+      // Fall back to polling
+      es.close();
+      ES[tf] = null;
+      SCAN[tf] = "polling";
+      pollForResults(tf, btn, 0, 20);
+    }
+  };
+}
+
+// ── POLLING FALLBACK (if SSE fails) ───────────────────────────────────────────
+// FIXED: polls /api/alerts/:tf directly, preserves previous results while waiting
+function pollForResults(tf, btn, attempt, maxAttempts) {
+  if (attempt >= maxAttempts) {
+    dbg("Polling timed out for", tf);
+    render(tf); // show whatever we have
+    onScanComplete(tf, btn, DATA[tf].length, false);
+    return;
+  }
+
+  dbg("Polling attempt", attempt + 1, "for", tf);
+  setPanelScanning(tf, true, "Polling for results… (attempt " + (attempt + 1) + "/" + maxAttempts + ")");
+
+  setTimeout(function() {
+    fetch(API + "/alerts/" + tf)
+      .then(function(r) { return r.json(); })
+      .then(function(j) {
+        if (!j.success) throw new Error("bad response");
+        // If scan is still running, keep polling
+        if (j.scanState && j.scanState.running) {
+          var p = j.scanState.progress;
+          if (p) updateProgress(tf, p.scanned, p.total, p.found);
+          pollForResults(tf, btn, attempt + 1, maxAttempts);
+          return;
+        }
+        // Scan done
+        if (Array.isArray(j.alerts)) {
+          DATA[tf] = j.alerts;
+        }
+        SCAN[tf] = "done";
+        onScanComplete(tf, btn, DATA[tf].length, false);
+      })
+      .catch(function(e) {
+        dbg("Poll error:", e.message);
+        pollForResults(tf, btn, attempt + 1, maxAttempts);
+      });
+  }, 10000);
+}
+
+// ── SCAN COMPLETE ─────────────────────────────────────────────────────────────
+function onScanComplete(tf, btn, found, isError) {
+  SCAN[tf] = isError ? "error" : "done";
+
+  if (btn) {
+    btn.disabled  = false;
+    btn.textContent = "Scan " + tf.toUpperCase();
+    btn.className = "btn";
+  }
+
+  setPanelScanning(tf, false);
+  setPanelDone(tf, found, isError);
+  render(tf);
+
+  if (isError) {
+    setSt("✗ " + tf.toUpperCase() + " scan error — check logs", "err");
+    toast("Scan error — check SSE log panel", "err");
+  } else if (found > 0) {
+    setSt("✓ " + tf.toUpperCase() + " done — " + found + " setups (UI only, not saved to history)", "done");
+    toast(tf.toUpperCase() + " scan complete — " + found + " CRT setups found!", "ok");
+  } else {
+    setSt("✓ " + tf.toUpperCase() + " done — no CRT setups found", "done");
+    toast(tf.toUpperCase() + " scan complete — no setups found", "info");
+  }
 }
 
 // ── HISTORY ───────────────────────────────────────────────────────────────────
 function loadHist() {
   var tf   = document.getElementById("htf").value;
   var days = document.getElementById("hdays").value;
-  var url  = tf==="all" ? API+"/history?days="+days : API+"/history/"+tf+"?days="+days;
+  var url  = tf === "all" ? API + "/history?days=" + days : API + "/history/" + tf + "?days=" + days;
   var btn  = document.getElementById("bhist");
-  if (btn){btn.disabled=true;btn.textContent="Loading…";}
+  if (btn) { btn.disabled = true; btn.textContent = "Loading…"; }
   fetch(url)
-    .then(function(r){return r.json();})
-    .then(function(j){HIST=j.data||[];renderHist();toast("Loaded "+HIST.length+" records","ok");})
-    .catch(function(e){toast("History error: "+e.message,"err");})
-    .finally(function(){if(btn){btn.disabled=false;btn.textContent="↺ History";}});
+    .then(function(r) { return r.json(); })
+    .then(function(j) {
+      HIST = j.data || [];
+      renderHist();
+      toast("Loaded " + HIST.length + " records", "ok");
+    })
+    .catch(function(e) { toast("History error: " + e.message, "err"); })
+    .finally(function() { if (btn) { btn.disabled = false; btn.textContent = "↺ History"; } });
 }
 
 function renderHist() {
   var dir  = document.getElementById("hdir").value;
   var body = document.getElementById("hbody");
   var cnt  = document.getElementById("hcount");
-  var list = HIST.filter(function(r){
-    var d = dir==="all"||(r.direction||"").toUpperCase()===dir;
-    var s = !Q||(r.symbol&&r.symbol.toLowerCase().indexOf(Q.toLowerCase())!==-1);
-    return d&&s;
+  var list = HIST.filter(function(r) {
+    var d = dir === "all" || (r.direction || "").toUpperCase() === dir;
+    var s = !Q || (r.symbol && r.symbol.toLowerCase().indexOf(Q.toLowerCase()) !== -1);
+    return d && s;
   });
-  if (cnt) cnt.textContent = list.length+" records";
+  if (cnt) cnt.textContent = list.length + " records";
   if (!list.length) {
-    body.innerHTML='<tr><td colspan="8" style="text-align:center;padding:28px;color:#3d4560">'+(HIST.length===0?'Click "↺ History" to load':"No records match filters")+'</td></tr>';
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px;color:#3d4560">' +
+      (HIST.length === 0 ? 'Click "↺ History" to load' : "No records match filters") + '</td></tr>';
     return;
   }
-  body.innerHTML = list.map(function(r){
-    var bull=(r.direction||"").toUpperCase()==="BULLISH";
-    var sym=(r.symbol||"?").replace(/_USDT$/,"").replace(/USDT$/,"");
-    var ts=r.scanned_at?new Date(r.scanned_at).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
-    var price=r.current_price||(r.raw&&r.raw.currentPrice)||0;
-    var c1h=r.c1_high||(r.raw&&r.raw.c1High)||0;
-    var c1l=r.c1_low||(r.raw&&r.raw.c1Low)||0;
-    var sweep=r.sweep_level||(r.raw&&r.raw.sweepLevel)||0;
-    var dc=bull?"#00e5a0":"#ff4b6e";
-    var dcbg=bull?"rgba(0,229,160,.1)":"rgba(255,75,110,.1)";
-    return '<tr>'+
-      '<td><span style="color:#d4d9e8;font-weight:700">'+sym+'</span></td>'+
-      '<td><span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:9px;background:'+dcbg+';color:'+dc+'">'+(bull?"▲ Bull":"▼ Bear")+'</span></td>'+
-      '<td><span style="font-size:10px;padding:2px 7px;border-radius:9px;background:rgba(77,159,255,.1);color:#4d9fff;font-weight:700">'+(r.timeframe||"").toUpperCase()+'</span></td>'+
-      '<td style="color:#4d9fff">$'+fmt(price)+'</td>'+
-      '<td style="color:#d4d9e8">$'+fmt(c1h)+'</td>'+
-      '<td style="color:#d4d9e8">$'+fmt(c1l)+'</td>'+
-      '<td style="color:'+dc+'">$'+fmt(sweep)+'</td>'+
-      '<td style="color:#6b7592">'+ts+'</td>'+
+  body.innerHTML = list.map(function(r) {
+    var bull  = (r.direction || "").toUpperCase() === "BULLISH";
+    var sym   = (r.symbol || "?").replace(/_USDT$/, "").replace(/USDT$/, "");
+    var ts    = r.scanned_at ? new Date(r.scanned_at).toLocaleString([], {month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "—";
+    var price = r.current_price || (r.raw && r.raw.currentPrice) || 0;
+    var c1h   = r.c1_high  || (r.raw && r.raw.c1High)     || 0;
+    var c1l   = r.c1_low   || (r.raw && r.raw.c1Low)      || 0;
+    var sweep = r.sweep_level || (r.raw && r.raw.sweepLevel) || 0;
+    var dc    = bull ? "#00e5a0" : "#ff4b6e";
+    var dcbg  = bull ? "rgba(0,229,160,.1)" : "rgba(255,75,110,.1)";
+    return '<tr>' +
+      '<td><span style="color:#d4d9e8;font-weight:700">' + sym + '</span></td>' +
+      '<td><span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:9px;background:' + dcbg + ';color:' + dc + '">' + (bull ? "▲ Bull" : "▼ Bear") + '</span></td>' +
+      '<td><span style="font-size:10px;padding:2px 7px;border-radius:9px;background:rgba(77,159,255,.1);color:#4d9fff;font-weight:700">' + (r.timeframe || "").toUpperCase() + '</span></td>' +
+      '<td style="color:#4d9fff">$' + fmt(price) + '</td>' +
+      '<td style="color:#d4d9e8">$' + fmt(c1h) + '</td>' +
+      '<td style="color:#d4d9e8">$' + fmt(c1l) + '</td>' +
+      '<td style="color:' + dc + '">$' + fmt(sweep) + '</td>' +
+      '<td style="color:#6b7592">' + ts + '</td>' +
     '</tr>';
   }).join("");
 }
 
 // ── UI HELPERS ────────────────────────────────────────────────────────────────
 function switchTab(t) {
-  CTAB=t;
-  document.getElementById("vl").style.display=t==="live"?"":"none";
-  document.getElementById("vh").style.display=t==="hist"?"":"none";
-  document.getElementById("tl").className="tab"+(t==="live"?" on":"");
-  document.getElementById("th").className="tab"+(t==="hist"?" on":"");
-  if (t==="hist"&&HIST.length===0) loadHist();
+  CTAB = t;
+  document.getElementById("vl").style.display = t === "live" ? "" : "none";
+  document.getElementById("vh").style.display  = t === "hist" ? "" : "none";
+  document.getElementById("tl").className = "tab" + (t === "live" ? " on" : "");
+  document.getElementById("th").className = "tab" + (t === "hist" ? " on" : "");
+  if (t === "hist" && HIST.length === 0) loadHist();
 }
 
 function setOnline(ok) {
-  var d=document.getElementById("dot");
-  var l=document.getElementById("dlabel");
-  if(d) d.className="dot "+(ok?"on":"off");
-  if(l) l.textContent=ok?"Backend Online":"Backend Offline";
+  ONLINE = ok;
+  var d = document.getElementById("dot");
+  var l = document.getElementById("dlabel");
+  if (d) d.className = "dot " + (ok ? "on" : "off");
+  if (l) l.textContent = ok ? "Backend Online" : "Backend Offline";
 }
 
-function setSt(msg,cls) {
-  var el=document.getElementById("st");
-  if(el){el.textContent=msg;el.className="st "+(cls||"");}
+function setSt(msg, cls) {
+  var el = document.getElementById("stmsg");
+  if (el) {
+    el.textContent = msg;
+    el.className   = "stmsg " + (cls || "idle");
+  }
 }
 
 function setLast(ls) {
-  var el=document.getElementById("lscan");
-  var ts=Object.values(ls||{}).filter(Boolean).sort().reverse()[0];
-  if(el) el.textContent=ts?new Date(ts).toLocaleTimeString():"—";
+  var el = document.getElementById("lscan");
+  var ts = Object.values(ls || {}).filter(Boolean).sort().reverse()[0];
+  if (el) el.textContent = ts ? new Date(ts).toLocaleTimeString() : "—";
 }
 
-function toast(msg,type) {
-  var t=document.createElement("div");
-  t.className="toast "+(type||"ok");
-  t.textContent=msg;
+function toast(msg, type) {
+  var t = document.createElement("div");
+  t.className   = "toast " + (type || "ok");
+  t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(function(){t.classList.add("show");},10);
-  setTimeout(function(){t.classList.remove("show");setTimeout(function(){t.remove();},400);},4000);
+  setTimeout(function() { t.classList.add("show"); }, 10);
+  setTimeout(function() {
+    t.classList.remove("show");
+    setTimeout(function() { t.remove(); }, 400);
+  }, 4500);
 }
 
-document.getElementById("search").addEventListener("input",function(e){
-  Q=e.target.value.trim();
+// ── SEARCH ────────────────────────────────────────────────────────────────────
+document.getElementById("search").addEventListener("input", function(e) {
+  Q = e.target.value.trim();
   renderAll();
-  if(CTAB==="hist") renderHist();
+  if (CTAB === "hist") renderHist();
 });
 
 // ── START ─────────────────────────────────────────────────────────────────────
