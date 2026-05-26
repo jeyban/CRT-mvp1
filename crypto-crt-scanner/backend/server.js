@@ -6,25 +6,22 @@ const express = require("express");
 const app     = express();
 const PORT    = process.env.PORT || 3001;
 
-// ── CORS — must be FIRST, before any routes ───────────────────────────────────
-// Manually set headers on every single response to guarantee CORS works
-app.use(function(req, res, next) {
+// ── CORS ──────────────────────────────────────────────────────────────────────
+app.use(function (req, res, next) {
   res.setHeader("Access-Control-Allow-Origin",  "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-  // Answer preflight OPTIONS requests immediately
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
+  if (req.method === "OPTIONS") return res.status(200).end();
   next();
 });
 
 app.use(express.json());
 
 // ── Request logging ───────────────────────────────────────────────────────────
-app.use(function(req, res, next) {
-  console.log("[" + new Date().toLocaleTimeString() + "] " + req.method + " " + req.path);
+app.use(function (req, res, next) {
+  console.log(
+    "[" + new Date().toLocaleTimeString() + "] " + req.method + " " + req.path
+  );
   next();
 });
 
@@ -32,37 +29,36 @@ app.use(function(req, res, next) {
 const scannerRoutes = require("./routes/scanner");
 app.use("/api", scannerRoutes);
 
-app.get("/", function(req, res) {
-  res.json({ name: "CRT Scanner API", version: "2.0.0", timeframes: ["4h","1d"] });
+app.get("/", function (req, res) {
+  res.json({ name: "CRT Scanner API", version: "2.1.0", timeframes: ["4h", "1d"] });
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 const { startScheduler, runScan } = require("./services/scheduler");
 
-app.listen(PORT, async function() {
+app.listen(PORT, async function () {
   console.log("\n🚀 CRT Scanner API on port " + PORT);
 
-  // Start cron schedules
   startScheduler();
 
-  // Self-ping every 10 minutes to keep Render free tier awake
-  var SELF = (process.env.RENDER_EXTERNAL_URL || "http://localhost:" + PORT) + "/api/status";
-  setInterval(function() {
-    fetch(SELF).then(function(r) {
-      console.log("[ping] " + r.status);
-    }).catch(function(e) {
-      console.warn("[ping] failed:", e.message);
-    });
+  // Self-ping to keep Render free tier awake
+  const SELF =
+    (process.env.RENDER_EXTERNAL_URL || "http://localhost:" + PORT) +
+    "/api/status";
+  setInterval(function () {
+    fetch(SELF)
+      .then((r) => console.log("[ping] " + r.status))
+      .catch((e) => console.warn("[ping] failed:", e.message));
   }, 10 * 60 * 1000);
-  console.log("[ping] Self-ping registered → " + SELF);
+  console.log("[ping] Self-ping → " + SELF);
 
-  // Run startup scans so dashboard is never empty
+  // Startup scans so dashboard is never empty
   console.log("\n▶ Running startup scans...");
   try {
     await runScan("4h");
     await runScan("1d");
     console.log("✅ Startup scans complete.\n");
-  } catch(e) {
+  } catch (e) {
     console.error("Startup scan error:", e.message);
   }
 });
