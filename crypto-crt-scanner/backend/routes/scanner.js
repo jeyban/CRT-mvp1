@@ -116,14 +116,16 @@ router.get("/scan/:tf/stream", async (req, res) => {
 
   try {
     const results = await runScanWithStream(tf, send);
-    // Final summary event with full results embedded
+    // FIXED: do NOT embed results[] in this event — 300+ alerts = 90KB+ SSE message
+    // which gets truncated by Render/nginx proxies, causing ev.alerts to be undefined.
+    // Frontend must fetch /api/alerts/:tf after receiving this signal instead.
     send({
-      type:    "complete",
+      type:  "complete",
       tf,
-      found:   results.length,
-      alerts:  results,
-      msg:     results.length > 0
-        ? `Scan complete — ${results.length} setups found`
+      found: results.length,
+      // alerts intentionally omitted — frontend fetches /api/alerts/:tf on complete
+      msg:   results.length > 0
+        ? `Scan complete — ${results.length} setups found — fetching results…`
         : "Scan complete — no setups found",
       ts: Date.now(),
     });
