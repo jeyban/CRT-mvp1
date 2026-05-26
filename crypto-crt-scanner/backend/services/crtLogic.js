@@ -1,100 +1,113 @@
 /**
- * crtLogic.js — CRT Pattern Detection
+ * crtLogic.js — CRT (Candle Range Theory) Detection Engine
  *
- * Your CRT rules (from README):
- *   Bullish: C2_high > C1_high  AND  currentPrice < C1_high
- *            → C2 swept above C1 high, price reclaimed back below
+ * CRT Bullish Setup:
+ *   C2 sweeps ABOVE C1 high → price then reclaims BELOW C1 high
+ *   Formula: (C2_high > C1_high) AND (currentPrice < C1_high)
  *
- *   Bearish: C2_low < C1_low  AND  currentPrice > C1_low
- *            → C2 swept below C1 low, price reclaimed back above
+ * CRT Bearish Setup:
+ *   C2 sweeps BELOW C1 low → price then reclaims ABOVE C1 low
+ *   Formula: (C2_low < C1_low) AND (currentPrice > C1_low)
  *
- * No candle close required — live price is used as currentPrice.
+ * Detection is LIVE — no candle close confirmation needed.
  */
 
 /**
- * detectCRT — checks one symbol's candles for a CRT setup
+ * Analyze a single symbol for CRT setups.
  *
- * @param {string} symbol        e.g. "BTCUSDT"
- * @param {string} timeframe     e.g. "4h"
- * @param {Array}  candles       OHLCV array, oldest first
- *                               each: { open, high, low, close, volume, time }
- * @param {number} currentPrice  latest live price
- * @returns {object|null}        alert object or null
+ * @param {string} symbol       - e.g. "BTCUSDT"
+ * @param {string} timeframe    - e.g. "1h"
+ * @param {Array}  candles      - Array of candle objects (at least 2)
+ * @param {number} currentPrice - Live price from ticker
+ * @returns {Object|null}       - Alert object if CRT detected, null otherwise
  */
 function detectCRT(symbol, timeframe, candles, currentPrice) {
-  if (!candles || candles.length < 3) return null;
+  // Need at least 2 candles: C1 (previous) and C2 (current/live)
+  if (!candles || candles.length < 2) return null;
+  if (!currentPrice) return null;
 
-  // C1 = second-to-last closed candle
-  // C2 = last closed candle (the sweep candle)
-  // Current price is the live price on the forming candle
-  const c1 = candles[candles.length - 3];
-  const c2 = candles[candles.length - 2];
+  // C1 = second-to-last candle (previous closed candle)
+  // C2 = last candle in array (currently forming, may not be closed)
+  const C1 = candles[candles.length - 2];
+  const C2 = candles[candles.length - 1];
 
-  if (!c1 || !c2) return null;
+  const c1High = C1.high;
+  const c1Low  = C1.low;
+  const c2High = C2.high;
+  const c2Low  = C2.low;
 
-  const c1High = parseFloat(c1.high);
-  const c1Low  = parseFloat(c1.low);
-  const c2High = parseFloat(c2.high);
-  const c2Low  = parseFloat(c2.low);
-  const price  = parseFloat(currentPrice);
+  // ── Bullish CRT ──────────────────────────────────────────────────────────
+  // Step 1: C2 swept above C1's high (liquidity grab above)
+  // Step 2: Price has now reclaimed back below C1's high (rejection confirmed)
+  const isBullishCRT = (c2High > c1High) && (currentPrice < c1High);
 
-  // ── Bullish CRT ─────────────────────────────────────────────────────────────
-  // C2 swept ABOVE C1 high → price has now reclaimed BELOW C1 high
-  if (c2High > c1High && price < c1High) {
-    return buildAlert({
-      symbol,
-      timeframe,
-      direction:    "bullish",
+  if (isBullishCRT) {
+    return buildAlert(symbol, timeframe, "BULLISH", {
       c1High,
       c1Low,
       c2High,
       c2Low,
-      sweepLevel:   c1High,   // the level that was swept
-      currentPrice: price,
-      c1,
-      c2,
+      currentPrice,
+      sweepLevel: c1High, // The level that was swept
     });
   }
 
-  // ── Bearish CRT ─────────────────────────────────────────────────────────────
-  // C2 swept BELOW C1 low → price has now reclaimed ABOVE C1 low
-  if (c2Low < c1Low && price > c1Low) {
-    return buildAlert({
-      symbol,
-      timeframe,
-      direction:    "bearish",
+  // ── Bearish CRT ──────────────────────────────────────────────────────────
+  // Step 1: C2 swept below C1's low (liquidity grab below)
+  // Step 2: Price has now reclaimed back above C1's low (rejection confirmed)
+  const isBearishCRT = (c2Low < c1Low) && (currentPrice > c1Low);
+
+  if (isBearishCRT) {
+    return buildAlert(symbol, timeframe, "BEARISH", {
       c1High,
       c1Low,
       c2High,
       c2Low,
-      sweepLevel:   c1Low,    // the level that was swept
-      currentPrice: price,
-      c1,
-      c2,
+      currentPrice,
+      sweepLevel: c1Low, // The level that was swept
     });
   }
 
-  return null;
+  return null; // No CRT setup detected
 }
 
-function buildAlert({ symbol, timeframe, direction, c1High, c1Low, c2High, c2Low, sweepLevel, currentPrice, c1, c2 }) {
-  const id = `${symbol}_${timeframe}_${direction}_${c2.time}`;
-
+/**
+ * Build a standardized alert object.
+ */
+function buildAlert(symbol, timeframe, direction, data) {
   return {
-    id,
+    id: `${symbol}-${timeframe}-${direction}-${Date.now()}`,
     symbol,
     timeframe,
-    direction,
-    c1High,
-    c1Low,
-    c2High,
-    c2Low,
-    sweepLevel,
-    currentPrice,
-    c1OpenTime:  c1.time,
-    c2OpenTime:  c2.time,
-    timestamp:   new Date().toISOString(),
+    direction,          // "BULLISH" or "BEARISH"
+    c1High: data.c1High,
+    c1Low: data.c1Low,
+    c2High: data.c2High,
+    c2Low: data.c2Low,
+    sweepLevel: data.sweepLevel,
+    currentPrice: data.currentPrice,
+    // How far price has reclaimed past the sweep level (as %)
+    reclaimPercent: calcReclaimPercent(direction, data),
+    timestamp: new Date().toISOString(),
   };
+}
+
+/**
+ * Calculate how aggressively price has reclaimed (useful context for traders).
+ */
+function calcReclaimPercent(direction, data) {
+  const { c1High, c1Low, currentPrice, c2High, c2Low } = data;
+  if (direction === "BULLISH") {
+    // How far back below C1 high has price moved?
+    const range = c2High - c1High; // Size of the sweep
+    const reclaim = c1High - currentPrice;
+    return range > 0 ? ((reclaim / range) * 100).toFixed(1) : "0.0";
+  } else {
+    // Bearish: how far back above C1 low has price moved?
+    const range = c1Low - c2Low;
+    const reclaim = currentPrice - c1Low;
+    return range > 0 ? ((reclaim / range) * 100).toFixed(1) : "0.0";
+  }
 }
 
 module.exports = { detectCRT };
