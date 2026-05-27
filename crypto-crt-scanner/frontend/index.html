@@ -78,21 +78,16 @@ html,body{margin:0;padding:0;background:#0a0b0e;color:#d4d9e8;font-family:'JetBr
 .panel-sub{font-size:10px;color:#3d4560;padding:4px 15px 0;min-height:18px;display:flex;align-items:center;gap:6px}
 .panel-sub.scanning{color:#f5a623}
 
-.log{padding:10px;display:flex;flex-direction:column;gap:8px;max-height:68vh;overflow-y:auto}
-.log::-webkit-scrollbar{width:3px}
-.log::-webkit-scrollbar-thumb{background:#2a3045;border-radius:2px}
-.empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:30px 16px;color:#6b7592;text-align:center}
-
-/* SSE log panel */
-.sselog{background:#0a0b0e;border-top:1px solid #1e2330;padding:8px 12px;max-height:120px;overflow-y:auto;font-size:10px;color:#3d4560;display:none}
-.sselog.active{display:block}
+/* SSE log — this IS the main panel display */
+.sselog{background:#0a0b0e;padding:10px 14px;max-height:60vh;min-height:120px;overflow-y:auto;font-size:13px;color:#3d4560;display:block}
 .sselog::-webkit-scrollbar{width:3px}
 .sselog::-webkit-scrollbar-thumb{background:#2a3045;border-radius:2px}
-.sse-line{padding:1px 0;line-height:1.5}
-.sse-line.found{color:#00e5a0}
+.sse-line{padding:2px 0;line-height:1.7}
+.sse-line.found{color:#00e5a0;font-weight:600}
 .sse-line.error{color:#ff4b6e}
 .sse-line.start,.sse-line.done{color:#4d9fff}
-.sse-line.scanning{color:#6b7592}
+.sse-line.scanning{color:#3d4560}
+.sse-idle{display:flex;flex-direction:column;align-items:center;gap:6px;padding:30px 16px;color:#3d4560;text-align:center;font-size:13px}
 
 /* Progress bar */
 .progress-wrap{padding:4px 15px 6px;display:none}
@@ -186,10 +181,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div class="progress-bg"><div class="progress-fill" id="progfill4h"></div></div>
         <div class="progress-label" id="proglbl4h"></div>
       </div>
-      <div class="log" id="l4h">
-        <div class="empty"><span style="font-size:28px">⏳</span><p>Fetching data…</p></div>
-      </div>
-      <div class="sselog" id="slog4h"></div>
+      <div class="sselog" id="slog4h"><div class="sse-idle">Run a scan or wait for auto schedule</div></div>
     </div>
 
     <!-- 1D Panel -->
@@ -207,10 +199,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div class="progress-bg"><div class="progress-fill" id="progfill1d"></div></div>
         <div class="progress-label" id="proglbl1d"></div>
       </div>
-      <div class="log" id="l1d">
-        <div class="empty"><span style="font-size:28px">⏳</span><p>Fetching data…</p></div>
-      </div>
-      <div class="sselog" id="slog1d"></div>
+      <div class="sselog" id="slog1d"><div class="sse-idle">Run a scan or wait for auto schedule</div></div>
     </div>
 
   </div>
@@ -344,8 +333,22 @@ function fetchAlerts() {
       setOnline(true);
 
       // FIXED: only render panels not currently being scanned or cooling
-      if (!block4h) render("4h");
-      if (!block1d) render("1d");
+      if (!block4h) {
+        render("4h");
+        if (DATA["4h"].length > 0) {
+          appendSseLog("4h", "✓ " + DATA["4h"].length + " CRT setups loaded (last auto scan)", "done");
+        } else {
+          appendSseLog("4h", "No setups from last scan — run Scan 4H to check now", "");
+        }
+      }
+      if (!block1d) {
+        render("1d");
+        if (DATA["1d"].length > 0) {
+          appendSseLog("1d", "✓ " + DATA["1d"].length + " CRT setups loaded (last auto scan)", "done");
+        } else {
+          appendSseLog("1d", "No setups from last scan — run Scan 1D to check now", "");
+        }
+      }
 
       setLast(d.lastScan);
 
@@ -382,53 +385,21 @@ function checkBackendScanState(scanState) {
   });
 }
 
-// ── RENDER ────────────────────────────────────────────────────────────────────
+// ── RENDER — updates badge count; SSE log is the main display now ─────────────
 function renderAll() { render("4h"); render("1d"); }
 
 function render(tf, force) {
-  var log = document.getElementById("l" + tf);
-  var ct  = document.getElementById("c" + tf);
-  if (!log) return;
-
-  // Don't wipe the panel while actively scanning or cooling — UNLESS caller forces it
-  // (force=true is used by the complete handler which has already set DATA[tf])
-  if (!force && (SCAN[tf] === "running" || SCAN[tf] === "cooling")) {
-    dbg("render(" + tf + ") skipped — scan state:", SCAN[tf]);
-    return;
-  }
-
-  var list = (DATA[tf] || []).filter(function(a) {
+  var ct = document.getElementById("c" + tf);
+  if (!ct) return;
+  var count = (DATA[tf] || []).filter(function(a) {
     if (!Q) return true;
     return a.symbol && a.symbol.toLowerCase().indexOf(Q.toLowerCase()) !== -1;
-  });
-
-  if (ct) {
-    ct.textContent = list.length;
-    ct.className   = "badge " + (list.length > 0 ? "on" : "off");
-  }
-
-  if (list.length === 0) {
-    // FIXED: show contextual message based on whether a scan has ever run
-    var msg = Q
-      ? "No results match search."
-      : "No CRT setups found.";
-    var hint = Q
-      ? ""
-      : "<small style='color:#3d4560'>Run a scan or wait for auto schedule.</small>";
-    log.innerHTML =
-      '<div class="empty"><span style="font-size:28px">📭</span>' +
-      '<p style="color:#6b7592">' + msg + '</p>' + hint + '</div>';
-    return;
-  }
-
-  var html = "";
-  for (var i = 0; i < list.length; i++) {
-    html += buildCard(list[i]);
-  }
-  log.innerHTML = html;
+  }).length;
+  ct.textContent = count;
+  ct.className   = "badge " + (count > 0 ? "on" : "off");
 }
 
-// ── CARD ──────────────────────────────────────────────────────────────────────
+// ── CARD — kept for future use, not currently rendered ────────────────────────
 function buildCard(a) {
   var bull  = (a.direction || "").toUpperCase() === "BULLISH";
   var sym   = (a.symbol || "?").replace(/_USDT$/, "").replace(/USDT$/, "");
@@ -495,7 +466,7 @@ function setPanelScanning(tf, active, msg) {
     if (pst)  { pst.className  = "panel-status scanning"; pst.textContent = "⟳ Scanning"; }
     if (psub) { psub.className = "panel-sub scanning"; psub.textContent = msg || "Scanning…"; }
     if (prog) { prog.className = "progress-wrap active"; }
-    if (slog) { slog.className = "sselog active"; }
+    // sselog is always visible — no need to toggle class
   } else {
     if (bar)  { bar.className  = "panel-scanning-bar"; }
     if (prog) { prog.className = "progress-wrap"; }
