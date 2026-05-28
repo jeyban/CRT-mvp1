@@ -21,7 +21,52 @@ const INTERVAL_MAP = {
   "1d": "Day1",
 };
 
-// ── Pair cache ────────────────────────────────────────────────────────────────
+// ── Known commodity symbols to always include ─────────────────────────────────
+const COMMODITY_SYMBOLS = new Set(["XAU_USDT", "XAG_USDT", "OIL_USDT"]);
+
+// ── Stock ticker patterns to exclude ─────────────────────────────────────────
+// MEXC lists US/HK stock perpetuals like AAPL_USDT, TSLA_USDT, 700_USDT etc.
+// These follow the pattern of real stock tickers — we identify them by checking
+// against a known list since there's no "type" field in the API response.
+const STOCK_SYMBOLS = new Set([
+  // US stocks
+  "AAPL_USDT","AMZN_USDT","TSLA_USDT","GOOGL_USDT","MSFT_USDT","META_USDT",
+  "NVDA_USDT","NFLX_USDT","AMD_USDT","INTC_USDT","BABA_USDT","UBER_USDT",
+  "COIN_USDT","MSTR_USDT","PLTR_USDT","SHOP_USDT","SQ_USDT","PYPL_USDT",
+  "SNAP_USDT","TWTR_USDT","SPOT_USDT","ABNB_USDT","RBLX_USDT","HOOD_USDT",
+  "GME_USDT","AMC_USDT","BBY_USDT","F_USDT","GM_USDT","BA_USDT",
+  "DIS_USDT","V_USDT","MA_USDT","JPM_USDT","GS_USDT","BAC_USDT",
+  "WMT_USDT","PFE_USDT","JNJ_USDT","XOM_USDT","CVX_USDT",
+  // HK stocks (numeric tickers)
+  "700_USDT","9988_USDT","1810_USDT","3690_USDT","9618_USDT","2318_USDT",
+  "941_USDT","388_USDT","1299_USDT","2628_USDT","3988_USDT","1398_USDT",
+  // Other non-crypto
+  "XAUUSD_USDT", // duplicate gold format
+]);
+
+/**
+ * Returns true if the symbol looks like a real crypto perpetual
+ * (or is an explicitly allowed commodity like gold/silver/oil).
+ * Rejects known stock tickers.
+ */
+function isCryptoOrCommodity(symbol) {
+  if (COMMODITY_SYMBOLS.has(symbol)) return true;   // always allow XAU, XAG, OIL
+  if (STOCK_SYMBOLS.has(symbol))     return false;  // block known US stock tickers
+
+  const base = symbol.replace(/_USDT$/, "");
+
+  // Numeric-only bases are HK stock tickers (e.g. 700_USDT, 9988_USDT)
+  if (/^\d+$/.test(base)) return false;
+
+  // MEXC stock perpetuals end in "STOCK" (e.g. ASTSSTOCK_USDT, BABASTOCK_USDT, BWNSTOCK_USDT)
+  if (base.endsWith("STOCK")) return false;
+
+  // Other non-crypto product types MEXC lists
+  if (base.endsWith("ETF"))   return false;
+  if (base.endsWith("INDEX")) return false;
+
+  return true;
+}
 let cachedPairs   = [];
 let lastPairFetch = 0;
 const PAIR_TTL    = 6 * 60 * 60 * 1000; // refresh every 6 hours
@@ -40,10 +85,11 @@ async function getPairs() {
     const res  = await axios.get(`${BASE}/detail`, { timeout: 10000 });
     const list = res.data && res.data.data ? res.data.data : [];
 
-    // state=0 means enabled; quoteCoin=USDT; apiAllowed is not required for market data
+    // state=0 means enabled; quoteCoin=USDT; filter out stocks, keep crypto + gold/silver/oil
     const pairs = list
       .filter(c => c.quoteCoin === "USDT" && c.state === 0)
       .map(c => c.symbol)
+      .filter(isCryptoOrCommodity)
       .sort();
 
     if (pairs.length >= 50) {
@@ -148,7 +194,7 @@ async function fetchPrice(symbol) {
   }
 }
 
-// ── Fallback pair list ────────────────────────────────────────────────────────
+// ── Fallback pair list (crypto only + gold/silver/oil) ───────────────────────
 const FALLBACK_PAIRS = [
   "BTC_USDT","ETH_USDT","BNB_USDT","SOL_USDT","XRP_USDT",
   "DOGE_USDT","ADA_USDT","AVAX_USDT","DOT_USDT","LTC_USDT",
@@ -167,8 +213,10 @@ const FALLBACK_PAIRS = [
   "SHIB_USDT","NOT_USDT","EIGEN_USDT","DRIFT_USDT","ZRO_USDT",
   "ALT_USDT","JUP_USDT","DYM_USDT","PYTH_USDT","STRK_USDT",
   "TAO_USDT","AGIX_USDT","ONE_USDT","KLAY_USDT","NEO_USDT",
-  "IOTX_USDT","NMR_USDT","BAL_USDT","CVX_USDT","RPL_USDT",
+  "IOTX_USDT","NMR_USDT","BAL_USDT","RPL_USDT",
   "SAFE_USDT","LISTA_USDT","IO_USDT","OMNI_USDT","TURBO_USDT",
+  // Commodities
+  "XAU_USDT","XAG_USDT","OIL_USDT",
 ];
 
 module.exports = { fetchKlines, fetchPrice, getPairs };
