@@ -3,10 +3,6 @@
     {
       "source": "/api/:path*",
       "destination": "https://crt-mvp1.onrender.com/api/:path*"
-    },
-    {
-      "source": "/healthz",
-      "destination": "https://crt-mvp1.onrender.com/healthz"
     }
   ]
 }
