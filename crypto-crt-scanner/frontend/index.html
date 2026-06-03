@@ -4,168 +4,384 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>CRT Scanner — MEXC</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@700;800;900&display=swap" rel="stylesheet"/>
 <style>
-html,body{margin:0;padding:0;background:#080910;color:#c8cfe0;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;min-height:100vh}
-*{box-sizing:border-box}
-.wrap{max-width:1480px;margin:0 auto;padding:0 20px 80px}
+/* ── RESET + BASE ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: #070810;
+  color: #c8cedf;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
 
-.hdr{display:flex;align-items:center;justify-content:space-between;padding:18px 0 14px;border-bottom:1px solid #181c28;flex-wrap:wrap;gap:10px}
-.logo{display:flex;align-items:center;gap:12px}
-.logo-icon{width:36px;height:36px;background:#00e5a0;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-.logo-text{font-family:'Syne',sans-serif;font-size:21px;font-weight:800;color:#fff}
-.logo-sub{font-size:10px;color:#4a5270;letter-spacing:2px;text-transform:uppercase;margin-top:1px}
-.meta{display:flex;align-items:center;gap:16px;font-size:11px;color:#4a5270}
-.dot{width:7px;height:7px;border-radius:50%;background:#2a3045;display:inline-block;margin-right:5px;transition:background .3s;flex-shrink:0}
-.dot.on{background:#00e5a0}
-.dot.off{background:#ff4b6e}
+/* ── LAYOUT ──────────────────────────────────────────────────────── */
+.wrap { max-width: 1440px; margin: 0 auto; padding: 0 20px 80px; }
 
-.sched{font-size:10px;color:#2e3450;padding:7px 0 2px;display:flex;gap:20px;flex-wrap:wrap;letter-spacing:.3px}
+/* ── HEADER ──────────────────────────────────────────────────────── */
+.hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 22px 0 16px;
+  border-bottom: 1px solid #181c2a;
+  flex-wrap: wrap; gap: 12px;
+}
+.logo { display: flex; align-items: center; gap: 14px; }
+.logo-icon {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, #00e5a0, #00b87d);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 0 20px rgba(0,229,160,.3);
+}
+.logo-text { font-family: 'Syne', sans-serif; font-size: 21px; font-weight: 900; color: #fff; }
+.logo-sub  { font-size: 10px; color: #4a5270; letter-spacing: 2.5px; text-transform: uppercase; margin-top: 1px; }
+.meta { display: flex; align-items: center; gap: 18px; font-size: 11px; color: #4a5270; }
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #2a2f45; display: inline-block;
+  margin-right: 6px; transition: background .3s, box-shadow .3s;
+}
+.dot.on  { background: #00e5a0; box-shadow: 0 0 8px rgba(0,229,160,.6); }
+.dot.off { background: #ff4b6e; }
+.dot.warn{ background: #f5a623; }
 
-.tb{display:flex;align-items:center;gap:10px;padding:12px 0 4px;flex-wrap:wrap}
-.si{flex:1;min-width:180px;max-width:280px;position:relative}
-.si span{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px}
-.si input{width:100%;background:#0d0f16;border:1px solid #181c28;border-radius:7px;padding:8px 10px 8px 32px;color:#c8cfe0;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;transition:border-color .2s}
-.si input:focus{border-color:#4d9fff}
-.si input::placeholder{color:#2e3450}
-.btns{display:flex;gap:8px;flex-wrap:wrap}
-.btn{background:#0d0f16;border:1px solid #181c28;border-radius:7px;color:#4a5270;font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 16px;cursor:pointer;transition:all .2s;white-space:nowrap}
-.btn:hover:not(:disabled){background:rgba(77,159,255,.08);border-color:#4d9fff;color:#4d9fff}
-.btn:disabled{opacity:.35;cursor:not-allowed}
-.btn.scanning{border-color:#f5a623;color:#f5a623;background:rgba(245,166,35,.07)}
+/* ── SCHEDULE BAR ─────────────────────────────────────────────────── */
+.sched {
+  font-size: 10px; color: #2e3450;
+  padding: 10px 0 4px;
+  display: flex; gap: 20px; flex-wrap: wrap;
+  letter-spacing: .3px;
+}
 
-.stbar{font-size:11px;padding:4px 0 8px;min-height:24px;display:flex;align-items:center}
-.stmsg{transition:color .2s}
-.stmsg.live{color:#4d9fff}
-.stmsg.done{color:#00e5a0}
-.stmsg.err{color:#ff4b6e}
-.stmsg.warn{color:#f5a623}
-.stmsg.idle{color:#2e3450}
+/* ── TOOLBAR ──────────────────────────────────────────────────────── */
+.tb {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 0 6px; flex-wrap: wrap;
+}
+.si { flex: 1; min-width: 200px; max-width: 320px; position: relative; }
+.si span { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 13px; }
+.si input {
+  width: 100%;
+  background: #0d0f1a; border: 1px solid #1a1f32;
+  border-radius: 8px; padding: 9px 10px 9px 34px;
+  color: #c8cedf; font-family: 'JetBrains Mono', monospace; font-size: 12px; outline: none;
+  transition: border-color .2s;
+}
+.si input:focus  { border-color: #4d9fff; }
+.si input::placeholder { color: #2e3450; }
 
-.tabs{display:flex;gap:2px;border-bottom:1px solid #181c28;margin:4px 0 16px}
-.tab{padding:7px 18px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#4a5270;cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;transition:color .2s}
-.tab:hover{color:#c8cfe0}
-.tab.on{color:#4d9fff;border-bottom-color:#4d9fff}
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  background: #0d0f1a; border: 1px solid #1a1f32;
+  border-radius: 7px; color: #5a6280;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  padding: 8px 18px; cursor: pointer; transition: all .18s; font-weight: 500;
+}
+.btn:hover:not(:disabled) { background: rgba(77,159,255,.08); border-color: #4d9fff; color: #4d9fff; }
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+.btn.scanning { border-color: #f5a623; color: #f5a623; background: rgba(245,166,35,.07); }
+.btn.primary  { background: rgba(0,229,160,.1); border-color: rgba(0,229,160,.3); color: #00e5a0; }
+.btn.primary:hover:not(:disabled) { background: rgba(0,229,160,.18); }
 
-.panels{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:720px){.panels{grid-template-columns:1fr}}
+/* ── STATUS BAR ──────────────────────────────────────────────────── */
+.stbar { font-size: 11px; padding: 6px 0 8px; min-height: 24px; display: flex; align-items: center; gap: 8px; }
+.stmsg { transition: color .2s; }
+.stmsg.live { color: #4d9fff; }
+.stmsg.done { color: #00e5a0; }
+.stmsg.err  { color: #ff4b6e; }
+.stmsg.warn { color: #f5a623; }
+.stmsg.idle { color: #2e3450; }
 
-/* ── Panel shell ── */
-.panel{background:#0d0f16;border:1px solid #181c28;border-radius:12px;overflow:hidden;position:relative;display:flex;flex-direction:column}
-.scan-bar{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#f5a623,transparent);background-size:200% 100%;animation:sweep 1.4s linear infinite;display:none;z-index:10}
-.scan-bar.active{display:block}
-@keyframes sweep{0%{background-position:200% 0}100%{background-position:-200% 0}}
+/* ── TABS ─────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex; gap: 2px;
+  border-bottom: 1px solid #181c2a;
+  margin: 8px 0 18px;
+}
+.tab {
+  padding: 8px 18px;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: #4a5270; cursor: pointer;
+  border: none; border-bottom: 2px solid transparent;
+  background: none; transition: all .18s; font-weight: 500;
+}
+.tab:hover { color: #c8cedf; }
+.tab.on    { color: #4d9fff; border-bottom-color: #4d9fff; }
 
-/* ── Panel header ── */
-.ph{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #181c28;background:#111420;flex-shrink:0}
-.ph-left{display:flex;align-items:baseline;gap:8px}
-.tf-label{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#fff}
-.tf-desc{font-size:10px;color:#2e3450;letter-spacing:.8px;text-transform:uppercase}
-.ph-right{display:flex;align-items:center;gap:8px}
-.p-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:'JetBrains Mono',monospace;min-width:32px;text-align:center}
-.p-badge.on{background:rgba(0,229,160,.1);color:#00e5a0;border:1px solid rgba(0,229,160,.2)}
-.p-badge.off{background:#080910;color:#4a5270;border:1px solid #181c28}
-.p-status{font-size:10px;padding:3px 9px;border-radius:10px;font-family:'JetBrains Mono',monospace;white-space:nowrap;border:1px solid transparent}
-.p-status.ready{color:#2e3450;border-color:#181c28;background:#080910}
-.p-status.scanning{color:#f5a623;border-color:rgba(245,166,35,.3);background:rgba(245,166,35,.07)}
-.p-status.done{color:#00e5a0;border-color:rgba(0,229,160,.2);background:rgba(0,229,160,.07)}
-.p-status.error{color:#ff4b6e;border-color:rgba(255,75,110,.2);background:rgba(255,75,110,.07)}
+/* ── TF SECTION WRAPPER ───────────────────────────────────────────── */
+.tf-section {
+  margin-bottom: 32px;
+}
+.tf-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid #181c2a;
+  margin-bottom: 16px;
+}
+.tf-title {
+  font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 900; color: #fff;
+}
+.tf-subtitle { font-size: 10px; color: #2e3450; letter-spacing: 1.5px; text-transform: uppercase; }
+.tf-badges { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 
-/* ── Progress bar ── */
-.prog-wrap{padding:8px 16px 6px;border-bottom:1px solid #181c28;display:none;flex-shrink:0}
-.prog-wrap.active{display:block}
-.prog-track{background:#181c28;border-radius:3px;height:3px;overflow:hidden}
-.prog-fill{height:100%;background:#f5a623;border-radius:3px;transition:width .4s;width:0%}
-.prog-label{font-size:10px;color:#4a5270;margin-top:5px}
+/* ── SCANNING PROGRESS BAR (top of section) ─────────────────────── */
+.scan-progress-bar {
+  height: 2px;
+  background: #0d0f1a;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  opacity: 0;
+  transition: opacity .3s;
+}
+.scan-progress-bar.active { opacity: 1; }
+.scan-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f5a623, #ffcf6b);
+  border-radius: 2px;
+  transition: width .4s ease;
+  width: 0%;
+}
+.scan-progress-sweep {
+  height: 100%;
+  background: linear-gradient(90deg, transparent, #f5a623, transparent);
+  background-size: 200% 100%;
+  animation: sweep 1.4s linear infinite;
+  display: none;
+}
+.scan-progress-bar.indeterminate .scan-progress-sweep { display: block; }
+.scan-progress-bar.indeterminate .scan-progress-fill  { display: none; }
+@keyframes sweep { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-/* ══════════════════════════════════════════
-   A) LIVE LOGS
-   ══════════════════════════════════════════ */
-.sec-logs{border-bottom:1px solid #181c28;flex-shrink:0}
-.sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 16px;background:#0a0c13}
-.sec-title{font-size:10px;color:#2e3450;text-transform:uppercase;letter-spacing:1.2px;font-weight:700}
-.sec-action{font-size:10px;color:#2e3450;cursor:pointer;padding:2px 6px;border-radius:4px;border:none;background:none;font-family:'JetBrains Mono',monospace;transition:color .2s}
-.sec-action:hover{color:#4d9fff}
-/* logs show scan activity ONLY — no FOUND lines */
-.logs-body{max-height:110px;overflow-y:auto;padding:6px 16px 10px;background:#080910}
-.logs-body::-webkit-scrollbar{width:3px}
-.logs-body::-webkit-scrollbar-thumb{background:#1e2535;border-radius:2px}
-.log-line{font-size:11px;line-height:1.9;color:#2e3450;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.log-line.info{color:#4a5270}
-.log-line.warn{color:#f5a623}
-.log-line.err{color:#ff4b6e}
-.log-line.ok{color:#4d9fff}
+/* ── 3-COLUMN GRID ───────────────────────────────────────────────── */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 300px;
+  gap: 16px;
+  align-items: start;
+}
+@media(max-width: 1100px) {
+  .dashboard-grid { grid-template-columns: 1fr 1fr; }
+  .col-summary   { grid-column: 1 / -1; }
+}
+@media(max-width: 660px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .col-summary   { grid-column: 1; }
+}
 
-/* ══════════════════════════════════════════
-   B) FINAL RESULTS — signal cards only
-   ══════════════════════════════════════════ */
-.sec-results{flex:1;display:flex;flex-direction:column;min-height:0}
-.results-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 16px;background:#0a0c13;border-bottom:1px solid #181c28;flex-shrink:0}
-.results-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 16px;color:#2e3450;text-align:center;gap:10px;font-size:12px}
-.results-body{overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;max-height:380px}
-.results-body::-webkit-scrollbar{width:3px}
-.results-body::-webkit-scrollbar-thumb{background:#1e2535;border-radius:2px}
+/* ── PANEL BASE ──────────────────────────────────────────────────── */
+.panel {
+  background: #0d0f1a;
+  border: 1px solid #181c2a;
+  border-radius: 13px;
+  overflow: hidden;
+}
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 16px;
+  border-bottom: 1px solid #181c2a;
+  background: #0f1220;
+}
+.panel-title { font-size: 11px; color: #4a5270; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; }
+.panel-actions { display: flex; align-items: center; gap: 8px; }
+.pstatus {
+  font-size: 10px; font-weight: 600;
+  padding: 3px 10px; border-radius: 20px;
+  font-family: 'JetBrains Mono', monospace; white-space: nowrap;
+  border: 1px solid #1a1f32;
+  color: #2e3450;
+  background: #070810;
+}
+.pstatus.scanning { background: rgba(245,166,35,.08); color: #f5a623; border-color: rgba(245,166,35,.25); }
+.pstatus.done     { background: rgba(0,229,160,.08);  color: #00e5a0; border-color: rgba(0,229,160,.2); }
+.pstatus.error    { background: rgba(255,75,110,.08); color: #ff4b6e; border-color: rgba(255,75,110,.2); }
+.badge {
+  font-size: 11px; font-weight: 700;
+  padding: 2px 10px; border-radius: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  background: #070810; color: #4a5270; border: 1px solid #1a1f32;
+}
+.badge.on { background: rgba(0,229,160,.08); color: #00e5a0; border-color: rgba(0,229,160,.2); }
 
-/* Signal card */
-.sig-card{background:#111420;border:1px solid #181c28;border-radius:9px;overflow:hidden;transition:border-color .2s}
-.sig-card:hover{border-color:#252d45}
-.sig-card.bull{border-left:3px solid #00e5a0}
-.sig-card.bear{border-left:3px solid #ff4b6e}
-.sig-top{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px}
-.sig-sym{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:#fff}
-.sig-pair{font-size:10px;color:#2e3450}
-.sig-dir{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}
-.sig-dir.bull{background:rgba(0,229,160,.1);color:#00e5a0}
-.sig-dir.bear{background:rgba(255,75,110,.1);color:#ff4b6e}
-.sig-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#181c28;border-top:1px solid #181c28}
-.sig-cell{background:#111420;padding:7px 12px}
-.sig-cell-label{font-size:9px;color:#2e3450;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
-.sig-cell-val{font-size:11px;font-weight:600;color:#c8cfe0}
-.sig-cell-val.price{color:#4d9fff}
-.sig-cell-val.bull{color:#00e5a0}
-.sig-cell-val.bear{color:#ff4b6e}
-.sig-foot{display:flex;align-items:center;justify-content:space-between;padding:5px 14px;background:#080910;border-top:1px solid #181c28}
-.sig-foot-tf{font-size:9px;color:#2e3450;letter-spacing:.8px;text-transform:uppercase;font-weight:700}
-.sig-foot-time{font-size:9px;color:#2e3450}
+/* ── LIVE LOGS PANEL ─────────────────────────────────────────────── */
+.col-logs .panel-body {
+  padding: 10px 14px;
+  max-height: 380px; min-height: 120px;
+  overflow-y: auto;
+}
+.col-logs .panel-body::-webkit-scrollbar { width: 3px; }
+.col-logs .panel-body::-webkit-scrollbar-thumb { background: #1a1f32; border-radius: 2px; }
 
-/* ══════════════════════════════════════════
-   C) SCAN SUMMARY — shown after scan ends
-   ══════════════════════════════════════════ */
-.sec-summary{border-top:1px solid #181c28;padding:12px 16px;background:#0a0c13;display:none;flex-shrink:0}
-.sec-summary.active{display:block}
-.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.sum-cell{text-align:center;padding:4px 0}
-.sum-val{font-size:18px;font-weight:700;color:#c8cfe0;font-family:'Syne',sans-serif;line-height:1.2}
-.sum-val.found{color:#00e5a0}
-.sum-val.err{color:#ff4b6e}
-.sum-label{font-size:9px;color:#2e3450;text-transform:uppercase;letter-spacing:.6px;margin-top:3px}
+.log-line {
+  padding: 2px 0;
+  line-height: 1.7;
+  font-size: 12px;
+  color: #2e3450;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.log-line.status  { color: #4a5270; }
+.log-line.start   { color: #4d9fff; }
+.log-line.done    { color: #00e5a0; }
+.log-line.error   { color: #ff4b6e; }
+.log-timestamp    { font-size: 10px; color: #22273a; white-space: nowrap; margin-top: 3px; flex-shrink: 0; }
+.log-text         { flex: 1; word-break: break-all; }
+.log-idle {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 36px 16px; color: #22273a; text-align: center;
+}
+.log-idle .idle-icon { font-size: 24px; opacity: .4; }
+.log-idle .idle-msg  { font-size: 12px; }
 
-/* ── History ── */
-.hw{background:#0d0f16;border:1px solid #181c28;border-radius:12px;overflow:hidden}
-.hn{font-size:10px;color:#2e3450;padding:6px 14px;border-bottom:1px solid #181c28;background:#0a0c13}
-.htb{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid #181c28;flex-wrap:wrap}
-.htb select{background:#111420;border:1px solid #181c28;border-radius:6px;color:#c8cfe0;font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 9px;outline:none;cursor:pointer}
-.hc{font-size:11px;color:#2e3450;margin-left:auto}
-.htw{max-height:64vh;overflow-y:auto}
-.htw::-webkit-scrollbar{width:3px}
-.htw::-webkit-scrollbar-thumb{background:#1e2535;border-radius:2px}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th{padding:8px 10px;text-align:left;font-size:10px;color:#2e3450;letter-spacing:.4px;text-transform:uppercase;border-bottom:1px solid #181c28;background:#111420;font-weight:500}
-td{padding:8px 10px;border-bottom:1px solid #181c28;color:#4a5270;vertical-align:middle}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(255,255,255,.012)}
+/* ── RESULTS PANEL ───────────────────────────────────────────────── */
+.col-results .panel-body {
+  padding: 12px;
+  max-height: 380px; min-height: 120px;
+  overflow-y: auto;
+}
+.col-results .panel-body::-webkit-scrollbar { width: 3px; }
+.col-results .panel-body::-webkit-scrollbar-thumb { background: #1a1f32; border-radius: 2px; }
 
-.toast{position:fixed;bottom:20px;right:20px;padding:10px 16px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;transform:translateY(14px);opacity:0;transition:all .3s;z-index:9999;max-width:300px}
-.toast.ok{background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.4);color:#00e5a0}
-.toast.err{background:rgba(255,75,110,.08);border:1px solid rgba(255,75,110,.4);color:#ff4b6e}
-.toast.info{background:rgba(77,159,255,.08);border:1px solid rgba(77,159,255,.4);color:#4d9fff}
-.toast.warn{background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.4);color:#f5a623}
-.toast.show{transform:translateY(0);opacity:1}
+.results-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 36px 16px; color: #22273a; text-align: center;
+}
+.results-empty .empty-icon { font-size: 28px; opacity: .3; }
+.results-empty .empty-msg  { font-size: 12px; }
+
+/* ── SIGNAL CARD ─────────────────────────────────────────────────── */
+.signal-card {
+  background: #0a0c18;
+  border: 1px solid #181c2a;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.signal-card:last-child { margin-bottom: 0; }
+.signal-card:hover { border-color: #252c44; box-shadow: 0 4px 20px rgba(0,0,0,.4); }
+.signal-card.bull { border-left: 3px solid #00e5a0; }
+.signal-card.bear { border-left: 3px solid #ff4b6e; }
+
+.sc-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px 8px;
+}
+.sc-symbol {
+  font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; color: #fff;
+}
+.sc-usdt { font-size: 10px; color: #2e3450; }
+.sc-dir {
+  font-size: 10px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px;
+}
+.sc-dir.bull { background: rgba(0,229,160,.1); color: #00e5a0; border: 1px solid rgba(0,229,160,.2); }
+.sc-dir.bear { background: rgba(255,75,110,.1); color: #ff4b6e; border: 1px solid rgba(255,75,110,.2); }
+
+.sc-body { padding: 0 12px 10px; }
+.sc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+.sc-field-label { font-size: 9px; color: #2e3450; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 2px; }
+.sc-field-val   { font-size: 12px; font-weight: 600; color: #8a93b0; }
+.sc-field-val.price { color: #4d9fff; }
+.sc-field-val.bull  { color: #00e5a0; }
+.sc-field-val.bear  { color: #ff4b6e; }
+
+.sc-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 12px;
+  border-top: 1px solid #111420;
+  background: #070810;
+}
+.sc-tf  { font-size: 9px; color: #2e3450; letter-spacing: 1px; font-weight: 700; text-transform: uppercase; }
+.sc-ts  { font-size: 9px; color: #22273a; }
+
+/* ── SUMMARY PANEL ───────────────────────────────────────────────── */
+.col-summary .panel-body { padding: 16px; }
+
+.sum-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.sum-stat {
+  background: #070810;
+  border: 1px solid #181c2a;
+  border-radius: 9px;
+  padding: 12px 14px;
+  text-align: center;
+}
+.sum-stat-val  { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 900; color: #fff; line-height: 1; }
+.sum-stat-lbl  { font-size: 9px; color: #2e3450; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+.sum-stat.found .sum-stat-val { color: #00e5a0; }
+.sum-stat.errors .sum-stat-val{ color: #ff4b6e; }
+.sum-stat.time  .sum-stat-val { color: #4d9fff; font-size: 18px; }
+
+.sum-divider { height: 1px; background: #181c2a; margin: 14px 0; }
+
+.sum-section-title { font-size: 9px; color: #2e3450; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin-bottom: 10px; }
+
+.sum-last-scan {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px;
+  background: #070810; border: 1px solid #181c2a; border-radius: 8px;
+  margin-bottom: 8px;
+}
+.sum-last-scan-label { font-size: 11px; color: #4a5270; }
+.sum-last-scan-val   { font-size: 11px; color: #c8cedf; font-weight: 600; }
+
+.sum-note {
+  font-size: 10px; color: #22273a; line-height: 1.6;
+  padding: 10px; background: #070810; border: 1px solid #181c2a; border-radius: 8px;
+}
+
+/* ── HISTORY PANEL ───────────────────────────────────────────────── */
+.hw { background: #0d0f1a; border: 1px solid #181c2a; border-radius: 13px; overflow: hidden; }
+.htb {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid #181c2a;
+  flex-wrap: wrap; background: #0f1220;
+}
+.htb select {
+  background: #070810; border: 1px solid #181c2a;
+  border-radius: 6px; color: #c8cedf;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  padding: 6px 10px; outline: none; cursor: pointer;
+}
+.hc { font-size: 11px; color: #2e3450; margin-left: auto; }
+.hn { font-size: 10px; color: #2e3450; padding: 6px 16px; border-bottom: 1px solid #181c2a; background: #0a0c18; }
+.htw { max-height: 64vh; overflow-y: auto; }
+.htw::-webkit-scrollbar { width: 3px; }
+.htw::-webkit-scrollbar-thumb { background: #1a1f32; border-radius: 2px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th {
+  padding: 8px 12px; text-align: left;
+  font-size: 9px; color: #2e3450; letter-spacing: .5px;
+  text-transform: uppercase; border-bottom: 1px solid #181c2a;
+  background: #0f1220; font-weight: 600;
+}
+td { padding: 9px 12px; border-bottom: 1px solid #111420; color: #4a5270; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,.012); }
+
+/* ── TOAST ────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  padding: 10px 18px; border-radius: 9px;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  transform: translateY(20px); opacity: 0; transition: all .28s;
+  z-index: 9999; max-width: 300px; font-weight: 500;
+}
+.toast.ok   { background: rgba(0,229,160,.1);  border: 1px solid rgba(0,229,160,.4);  color: #00e5a0; }
+.toast.err  { background: rgba(255,75,110,.1); border: 1px solid rgba(255,75,110,.4); color: #ff4b6e; }
+.toast.info { background: rgba(77,159,255,.1); border: 1px solid rgba(77,159,255,.4); color: #4d9fff; }
+.toast.warn { background: rgba(245,166,35,.1); border: 1px solid rgba(245,166,35,.4); color: #f5a623; }
+.toast.show { transform: translateY(0); opacity: 1; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
+<!-- ── HEADER ── -->
 <header class="hdr">
   <div class="logo">
     <div class="logo-icon">⚡</div>
@@ -176,16 +392,18 @@ tr:hover td{background:rgba(255,255,255,.012)}
   </div>
   <div class="meta">
     <span><span class="dot off" id="dot"></span><span id="dlabel">Connecting…</span></span>
-    <span>Last scan: <span id="lscan" style="color:#c8cfe0">—</span></span>
+    <span>Last scan: <span id="lscan" style="color:#c8cedf">—</span></span>
   </div>
 </header>
 
+<!-- ── SCHEDULE ── -->
 <div class="sched">
   <span>● 4H auto: 1AM · 5AM · 9AM · 1PM · 5PM · 9PM UTC</span>
-  <span>● 1D auto: 8PM UTC daily</span>
-  <span>● Manual scans: UI only · not saved to history</span>
+  <span>● 1D auto: 8PM UTC</span>
+  <span>● Manual scans: UI only, not saved to history</span>
 </div>
 
+<!-- ── TOOLBAR ── -->
 <div class="tb">
   <div class="si">
     <span>🔍</span>
@@ -198,152 +416,255 @@ tr:hover td{background:rgba(255,255,255,.012)}
   </div>
 </div>
 
+<!-- ── STATUS BAR ── -->
 <div class="stbar">
   <span class="stmsg idle" id="stmsg">Loading data…</span>
 </div>
 
+<!-- ── TABS ── -->
 <div class="tabs">
-  <button class="tab on" id="tl" onclick="switchTab('live')">Live Results</button>
-  <button class="tab"    id="th" onclick="switchTab('hist')">History (Auto Scans)</button>
+  <button class="tab on" id="tl" onclick="switchTab('live')">Live View</button>
+  <button class="tab"   id="th" onclick="switchTab('hist')">History (Auto Scans)</button>
 </div>
 
+<!-- ═══════════════════════════════════ LIVE VIEW ═══════════════════════════════════ -->
 <div id="vl">
-  <div class="panels">
 
-    <!-- ── 4H PANEL ── -->
-    <div class="panel" id="panel4h">
-      <div class="scan-bar" id="scanbar4h"></div>
-
-      <div class="ph">
-        <div class="ph-left">
-          <span class="tf-label">4H</span>
-          <span class="tf-desc">PERP · AUTO 6×/DAY</span>
-        </div>
-        <div class="ph-right">
-          <span class="p-status ready" id="pst4h">Ready</span>
-          <span class="p-badge off" id="c4h">0</span>
-        </div>
+  <!-- ╔══════ 4H TIMEFRAME ══════╗ -->
+  <div class="tf-section">
+    <div class="tf-header">
+      <div>
+        <div class="tf-title">4H</div>
+        <div class="tf-subtitle">Perpetual · Auto 6× / Day</div>
       </div>
-
-      <div class="prog-wrap" id="prog4h">
-        <div class="prog-track"><div class="prog-fill" id="progfill4h"></div></div>
-        <div class="prog-label" id="proglbl4h"></div>
+      <div class="tf-badges">
+        <span class="pstatus" id="pst4h">Ready</span>
+        <span class="badge"   id="c4h">0</span>
       </div>
+    </div>
 
-      <!-- A) LIVE LOGS: scan status only, no FOUND messages -->
-      <div class="sec-logs">
-        <div class="sec-hdr">
-          <span class="sec-title">Live Log</span>
-          <button class="sec-action" onclick="clearLog('4h')">Clear</button>
-        </div>
-        <div class="logs-body" id="log4h">
-          <div class="log-line info">Waiting for scan…</div>
-        </div>
-      </div>
+    <!-- Progress bar (visible while scanning) -->
+    <div class="scan-progress-bar indeterminate" id="progbar4h">
+      <div class="scan-progress-sweep"></div>
+      <div class="scan-progress-fill" id="progfill4h"></div>
+    </div>
 
-      <!-- B) FINAL RESULTS: signal cards only -->
-      <div class="sec-results">
-        <div class="results-hdr">
-          <span class="sec-title">Signals Found</span>
-          <span style="font-size:10px;color:#2e3450" id="rfilt4h"></span>
-        </div>
-        <div id="res4h">
-          <div class="results-empty">
-            <span style="font-size:26px">📡</span>
-            <span>No signals yet — run a scan or wait for auto schedule</span>
+    <div class="dashboard-grid">
+
+      <!-- A) LIVE LOGS -->
+      <div class="col-logs">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Live Logs</span>
+            <div class="panel-actions">
+              <button class="btn" style="padding:3px 10px;font-size:10px" onclick="clearLogs('4h')">Clear</button>
+            </div>
+          </div>
+          <div class="panel-body" id="logs4h">
+            <div class="log-idle">
+              <div class="idle-icon">📡</div>
+              <div class="idle-msg">Logs appear here during scan</div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- C) SCAN SUMMARY: shown only after a scan completes -->
-      <div class="sec-summary" id="sum4h">
-        <div class="summary-grid">
-          <div class="sum-cell"><div class="sum-val"       id="ssum-scanned4h">—</div><div class="sum-label">Scanned</div></div>
-          <div class="sum-cell"><div class="sum-val found" id="ssum-found4h">—</div><div class="sum-label">Found</div></div>
-          <div class="sum-cell"><div class="sum-val err"   id="ssum-err4h">—</div><div class="sum-label">Errors</div></div>
-          <div class="sum-cell"><div class="sum-val"       id="ssum-time4h">—</div><div class="sum-label">Duration</div></div>
-        </div>
-      </div>
-    </div><!-- /4H -->
-
-    <!-- ── 1D PANEL ── -->
-    <div class="panel" id="panel1d">
-      <div class="scan-bar" id="scanbar1d"></div>
-
-      <div class="ph">
-        <div class="ph-left">
-          <span class="tf-label">1D</span>
-          <span class="tf-desc">PERP · AUTO 8PM UTC</span>
-        </div>
-        <div class="ph-right">
-          <span class="p-status ready" id="pst1d">Ready</span>
-          <span class="p-badge off" id="c1d">0</span>
-        </div>
-      </div>
-
-      <div class="prog-wrap" id="prog1d">
-        <div class="prog-track"><div class="prog-fill" id="progfill1d"></div></div>
-        <div class="prog-label" id="proglbl1d"></div>
-      </div>
-
-      <!-- A) LIVE LOGS -->
-      <div class="sec-logs">
-        <div class="sec-hdr">
-          <span class="sec-title">Live Log</span>
-          <button class="sec-action" onclick="clearLog('1d')">Clear</button>
-        </div>
-        <div class="logs-body" id="log1d">
-          <div class="log-line info">Waiting for scan…</div>
-        </div>
-      </div>
-
       <!-- B) FINAL RESULTS -->
-      <div class="sec-results">
-        <div class="results-hdr">
-          <span class="sec-title">Signals Found</span>
-          <span style="font-size:10px;color:#2e3450" id="rfilt1d"></span>
-        </div>
-        <div id="res1d">
-          <div class="results-empty">
-            <span style="font-size:26px">📡</span>
-            <span>No signals yet — run a scan or wait for auto schedule</span>
+      <div class="col-results">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Signals Found</span>
+            <div class="panel-actions">
+              <span class="badge on" id="rc4h" style="display:none">0</span>
+            </div>
+          </div>
+          <div class="panel-body" id="results4h">
+            <div class="results-empty">
+              <div class="empty-icon">🔎</div>
+              <div class="empty-msg">Signals appear here after scan</div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- C) SCAN SUMMARY -->
-      <div class="sec-summary" id="sum1d">
-        <div class="summary-grid">
-          <div class="sum-cell"><div class="sum-val"       id="ssum-scanned1d">—</div><div class="sum-label">Scanned</div></div>
-          <div class="sum-cell"><div class="sum-val found" id="ssum-found1d">—</div><div class="sum-label">Found</div></div>
-          <div class="sum-cell"><div class="sum-val err"   id="ssum-err1d">—</div><div class="sum-label">Errors</div></div>
-          <div class="sum-cell"><div class="sum-val"       id="ssum-time1d">—</div><div class="sum-label">Duration</div></div>
+      <div class="col-summary">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Scan Summary</span>
+          </div>
+          <div class="panel-body" id="summary4h">
+            <div class="sum-grid">
+              <div class="sum-stat">
+                <div class="sum-stat-val" id="s4h-scanned">—</div>
+                <div class="sum-stat-lbl">Scanned</div>
+              </div>
+              <div class="sum-stat found">
+                <div class="sum-stat-val" id="s4h-found">—</div>
+                <div class="sum-stat-lbl">Signals</div>
+              </div>
+              <div class="sum-stat errors">
+                <div class="sum-stat-val" id="s4h-errors">—</div>
+                <div class="sum-stat-lbl">Errors</div>
+              </div>
+              <div class="sum-stat time">
+                <div class="sum-stat-val" id="s4h-time">—</div>
+                <div class="sum-stat-lbl">Scan Time</div>
+              </div>
+            </div>
+            <div class="sum-divider"></div>
+            <div class="sum-section-title">Last Scan</div>
+            <div class="sum-last-scan">
+              <span class="sum-last-scan-label">Completed</span>
+              <span class="sum-last-scan-val" id="s4h-lastscan">—</span>
+            </div>
+            <div class="sum-note" id="s4h-note">Run a scan to populate summary data.</div>
+          </div>
         </div>
       </div>
-    </div><!-- /1D -->
 
-  </div>
-</div><!-- /vl -->
+    </div><!-- .dashboard-grid -->
+  </div><!-- .tf-section 4H -->
 
+  <!-- ╔══════ 1D TIMEFRAME ══════╗ -->
+  <div class="tf-section">
+    <div class="tf-header">
+      <div>
+        <div class="tf-title">1D</div>
+        <div class="tf-subtitle">Perpetual · Auto Daily 8PM UTC</div>
+      </div>
+      <div class="tf-badges">
+        <span class="pstatus" id="pst1d">Ready</span>
+        <span class="badge"   id="c1d">0</span>
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="scan-progress-bar indeterminate" id="progbar1d">
+      <div class="scan-progress-sweep"></div>
+      <div class="scan-progress-fill" id="progfill1d"></div>
+    </div>
+
+    <div class="dashboard-grid">
+
+      <!-- A) LIVE LOGS -->
+      <div class="col-logs">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Live Logs</span>
+            <div class="panel-actions">
+              <button class="btn" style="padding:3px 10px;font-size:10px" onclick="clearLogs('1d')">Clear</button>
+            </div>
+          </div>
+          <div class="panel-body" id="logs1d">
+            <div class="log-idle">
+              <div class="idle-icon">📡</div>
+              <div class="idle-msg">Logs appear here during scan</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- B) FINAL RESULTS -->
+      <div class="col-results">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Signals Found</span>
+            <div class="panel-actions">
+              <span class="badge on" id="rc1d" style="display:none">0</span>
+            </div>
+          </div>
+          <div class="panel-body" id="results1d">
+            <div class="results-empty">
+              <div class="empty-icon">🔎</div>
+              <div class="empty-msg">Signals appear here after scan</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- C) SCAN SUMMARY -->
+      <div class="col-summary">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Scan Summary</span>
+          </div>
+          <div class="panel-body">
+            <div class="sum-grid">
+              <div class="sum-stat">
+                <div class="sum-stat-val" id="s1d-scanned">—</div>
+                <div class="sum-stat-lbl">Scanned</div>
+              </div>
+              <div class="sum-stat found">
+                <div class="sum-stat-val" id="s1d-found">—</div>
+                <div class="sum-stat-lbl">Signals</div>
+              </div>
+              <div class="sum-stat errors">
+                <div class="sum-stat-val" id="s1d-errors">—</div>
+                <div class="sum-stat-lbl">Errors</div>
+              </div>
+              <div class="sum-stat time">
+                <div class="sum-stat-val" id="s1d-time">—</div>
+                <div class="sum-stat-lbl">Scan Time</div>
+              </div>
+            </div>
+            <div class="sum-divider"></div>
+            <div class="sum-section-title">Last Scan</div>
+            <div class="sum-last-scan">
+              <span class="sum-last-scan-label">Completed</span>
+              <span class="sum-last-scan-val" id="s1d-lastscan">—</span>
+            </div>
+            <div class="sum-note" id="s1d-note">Run a scan to populate summary data.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- .dashboard-grid -->
+  </div><!-- .tf-section 1D -->
+
+</div><!-- #vl -->
+
+
+<!-- ═══════════════════════════════════ HISTORY VIEW ═══════════════════════════════════ -->
 <div id="vh" style="display:none">
   <div class="hw">
-    <div class="hn">📋 History shows AUTO scan results only. Manual scans are not saved.</div>
+    <div class="hn">📋 History = AUTO scan results only. Manual scans not included.</div>
     <div class="htb">
-      <select id="htf"   onchange="loadHist()"><option value="all">All timeframes</option><option value="4h">4H only</option><option value="1d">1D only</option></select>
-      <select id="hdir"  onchange="renderHist()"><option value="all">All directions</option><option value="BULLISH">Bullish only</option><option value="BEARISH">Bearish only</option></select>
-      <select id="hdays" onchange="loadHist()"><option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="30">Last 30 days</option></select>
+      <select id="htf"  onchange="loadHist()">
+        <option value="all">All timeframes</option>
+        <option value="4h">4H only</option>
+        <option value="1d">1D only</option>
+      </select>
+      <select id="hdir" onchange="renderHist()">
+        <option value="all">All directions</option>
+        <option value="BULLISH">Bullish only</option>
+        <option value="BEARISH">Bearish only</option>
+      </select>
+      <select id="hdays" onchange="loadHist()">
+        <option value="7">Last 7 days</option>
+        <option value="14">Last 14 days</option>
+        <option value="30">Last 30 days</option>
+      </select>
       <span class="hc" id="hcount">— records</span>
     </div>
     <div class="htw">
       <table>
-        <thead><tr><th>Symbol</th><th>Direction</th><th>TF</th><th>Price</th><th>C1 High</th><th>C1 Low</th><th>Sweep</th><th>Scanned At</th></tr></thead>
-        <tbody id="hbody"><tr><td colspan="8" style="text-align:center;padding:36px;color:#2e3450">Click "↺ History" to load</td></tr></tbody>
+        <thead>
+          <tr>
+            <th>Symbol</th><th>Dir</th><th>TF</th>
+            <th>Price</th><th>C1 High</th><th>C1 Low</th>
+            <th>Sweep</th><th>Scanned At</th>
+          </tr>
+        </thead>
+        <tbody id="hbody">
+          <tr><td colspan="8" style="text-align:center;padding:36px;color:#22273a">Click "↺ History" to load</td></tr>
+        </tbody>
       </table>
     </div>
   </div>
 </div>
 
-</div><!-- /wrap -->
+</div><!-- .wrap -->
 
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────────
@@ -356,36 +677,47 @@ var DATA  = {"4h": [], "1d": []};
 var HIST  = [];
 var Q     = "";
 var CTAB  = "live";
-// SCAN: null | "connecting" | "running" | "cooling" | "done" | "error" | "polling"
 var SCAN  = {"4h": null, "1d": null};
 var ES    = {"4h": null, "1d": null};
-var PROG  = {"4h": {scanned:0,total:0,found:0,errors:0,startedAt:0},
-             "1d": {scanned:0,total:0,found:0,errors:0,startedAt:0}};
-var ONLINE        = false;
+var PROG  = {"4h": {scanned:0, total:0, found:0, errors:0, startTime:null}, "1d": {scanned:0, total:0, found:0, errors:0, startTime:null}};
+var ONLINE      = false;
 var POLL_INTERVAL = null;
+var API_DETECTED  = false;
 
-// ── Per-tf log dedup: track messages written this cycle so nothing repeats ────
-// Key = "cls|msg", cleared when a new scan starts or log is manually cleared
-var LOG_SEEN = {"4h": new Set(), "1d": new Set()};
-
-// fetchAlerts() runs every 60s — track whether we already wrote the initial
-// "N signals loaded" line so the poll doesn't keep appending it
-var LOAD_LOGGED = {"4h": false, "1d": false};
+// Track seen log lines per tf to avoid duplicates
+var SEEN_LOGS = {"4h": new Set(), "1d": new Set()};
 
 var dbg = function() {
-  if (typeof console !== "undefined")
+  if (typeof console !== "undefined") {
     console.log.apply(console, ["[CRT]"].concat(Array.prototype.slice.call(arguments)));
+  }
 };
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
 function boot() {
+  dbg("Boot: detecting API endpoint…");
   setSt("Connecting to backend…", "live");
+
   fetch(API_PROXY + "/status", {signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined})
-    .then(function(r) { if (!r.ok) throw new Error("proxy " + r.status); API = API_PROXY; onApiDetected(); })
-    .catch(function() {
+    .then(function(r) {
+      if (!r.ok) throw new Error("proxy status " + r.status);
+      API = API_PROXY;
+      API_DETECTED = true;
+      dbg("Using proxy API:", API);
+      onApiDetected();
+    })
+    .catch(function(e) {
+      dbg("Proxy failed (" + e.message + "), trying direct…");
       fetch(API_DIRECT + "/status")
-        .then(function(r) { if (!r.ok) throw new Error("direct " + r.status); API = API_DIRECT; onApiDetected(); })
-        .catch(function() {
+        .then(function(r) {
+          if (!r.ok) throw new Error("direct status " + r.status);
+          API = API_DIRECT;
+          API_DETECTED = true;
+          dbg("Using direct API:", API);
+          onApiDetected();
+        })
+        .catch(function(e2) {
+          dbg("Both APIs failed:", e2.message);
           setOnline(false);
           setSt("Cannot reach backend — retrying in 15s", "err");
           setTimeout(boot, 15000);
@@ -401,105 +733,87 @@ function onApiDetected() {
       var blocked = ["running","connecting","cooling"].some(function(s) {
         return SCAN["4h"] === s || SCAN["1d"] === s;
       });
-      if (!blocked) fetchAlerts();
+      if (!blocked) { dbg("Auto-poll…"); fetchAlerts(); }
+      else          { dbg("Auto-poll skipped — scan active"); }
     }, 60000);
   }
 }
 
-// ── FETCH ALERTS (boot + 60s poll) ───────────────────────────────────────────
+// ── FETCH ALERTS ──────────────────────────────────────────────────────────────
 function fetchAlerts() {
+  dbg("fetchAlerts()");
   fetch(API + "/alerts")
-    .then(function(r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(function(r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    })
     .then(function(j) {
       if (!j || !j.success) throw new Error("bad response");
-      var d  = j.data;
-      var b4 = isBlocked("4h"), b1 = isBlocked("1d");
 
-      if (!b4 && Array.isArray(d["4h"])) { DATA["4h"] = d["4h"]; renderResults("4h"); }
-      if (!b1 && Array.isArray(d["1d"])) { DATA["1d"] = d["1d"]; renderResults("1d"); }
+      var d = j.data;
+      var block4h = SCAN["4h"] === "running" || SCAN["4h"] === "connecting" || SCAN["4h"] === "cooling";
+      var block1d = SCAN["1d"] === "running" || SCAN["1d"] === "connecting" || SCAN["1d"] === "cooling";
+
+      if (!block4h && Array.isArray(d["4h"])) { DATA["4h"] = d["4h"]; }
+      if (!block1d && Array.isArray(d["1d"])) { DATA["1d"] = d["1d"]; }
 
       setOnline(true);
+
+      if (!block4h) {
+        renderResults("4h");
+        if (DATA["4h"].length > 0) {
+          appendLog("4h", "✓ " + DATA["4h"].length + " CRT setups loaded (last auto scan)", "done");
+        } else {
+          appendLog("4h", "No setups from last scan — run Scan 4H to check now", "status");
+        }
+      }
+      if (!block1d) {
+        renderResults("1d");
+        if (DATA["1d"].length > 0) {
+          appendLog("1d", "✓ " + DATA["1d"].length + " CRT setups loaded (last auto scan)", "done");
+        } else {
+          appendLog("1d", "No setups from last scan — run Scan 1D to check now", "status");
+        }
+      }
+
       setLast(d.lastScan);
-      if (d.scanState) checkBackendScanState(d.scanState);
+
+      if (d.scanState) { checkBackendScanState(d.scanState); }
 
       var total = DATA["4h"].length + DATA["1d"].length;
-      if (!isBlocked("4h") && !isBlocked("1d")) {
-        setSt(total > 0
-          ? "Ready — " + DATA["4h"].length + " 4H · " + DATA["1d"].length + " 1D signals"
-          : "Ready — no signals active", total > 0 ? "done" : "idle");
-      }
-
-      // Write the initial load line ONCE per panel — never repeated by the 60s poll
-      if (!b4 && !LOAD_LOGGED["4h"]) {
-        LOAD_LOGGED["4h"] = true;
-        addLog("4h", DATA["4h"].length > 0
-          ? DATA["4h"].length + " signals loaded from last scan" : "No signals from last scan", "info");
-      }
-      if (!b1 && !LOAD_LOGGED["1d"]) {
-        LOAD_LOGGED["1d"] = true;
-        addLog("1d", DATA["1d"].length > 0
-          ? DATA["1d"].length + " signals loaded from last scan" : "No signals from last scan", "info");
+      if (SCAN["4h"] !== "running" && SCAN["1d"] !== "running") {
+        setSt(
+          total > 0
+            ? "Ready — " + DATA["4h"].length + " 4H · " + DATA["1d"].length + " 1D setups"
+            : "Ready — no CRT setups currently active",
+          total > 0 ? "done" : "idle"
+        );
       }
     })
-    .catch(function(e) { setOnline(false); setSt("Connection error: " + e.message, "err"); });
+    .catch(function(e) {
+      dbg("fetchAlerts error:", e.message);
+      setOnline(false);
+      setSt("Connection error: " + e.message, "err");
+    });
 }
 
-function isBlocked(tf) {
-  return SCAN[tf] === "running" || SCAN[tf] === "connecting" || SCAN[tf] === "cooling";
-}
-
-function checkBackendScanState(ss) {
+function checkBackendScanState(scanState) {
   ["4h","1d"].forEach(function(tf) {
-    var s = ss[tf];
-    if (s && s.running && SCAN[tf] !== "running")
-      setPanelScanning(tf, true, (s.type || "auto") + " scan in progress");
+    var s = scanState[tf];
+    if (s && s.running && SCAN[tf] !== "running") {
+      dbg("Backend reports " + tf + " scan running — updating UI");
+      setProgressBar(tf, true, false);
+      setPanelStatus(tf, "scanning", "⟳ Scanning");
+    }
   });
 }
 
-// ── A) LOG SECTION ────────────────────────────────────────────────────────────
-// Rules:
-//   - Status/progress messages only (scanning, connected, errors, stream events)
-//   - FOUND signals are NEVER logged here — they go to section B only
-//   - Identical messages are deduped within the same scan cycle
-//   - Max 60 lines kept
-function addLog(tf, msg, cls) {
-  var key = (cls || "") + "|" + msg;
-  if (LOG_SEEN[tf].has(key)) return;          // deduplicate
-  LOG_SEEN[tf].add(key);
-
-  var body = document.getElementById("log" + tf);
-  if (!body) return;
-
-  // Remove the idle placeholder on first real message
-  var placeholder = body.querySelector(".log-line");
-  if (placeholder && (
-    placeholder.textContent === "Waiting for scan…" ||
-    placeholder.textContent === "Log cleared"
-  )) placeholder.remove();
-
-  var el = document.createElement("div");
-  el.className = "log-line " + (cls || "");
-  var ts = new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
-  el.textContent = ts + "  " + msg;
-  body.appendChild(el);
-  body.scrollTop = body.scrollHeight;
-
-  var lines = body.querySelectorAll(".log-line");
-  if (lines.length > 60) lines[0].remove();
-}
-
-function clearLog(tf) {
-  var body = document.getElementById("log" + tf);
-  if (body) body.innerHTML = '<div class="log-line info">Log cleared</div>';
-  LOG_SEEN[tf] = new Set();
-}
-
-// ── B) RESULTS SECTION ───────────────────────────────────────────────────────
-// Shows signal cards ONLY — no system messages, no "FOUND:" log lines
+// ── RENDER RESULTS ────────────────────────────────────────────────────────────
+// Only renders signal cards — never mixes in log messages
 function renderResults(tf) {
-  var container = document.getElementById("res" + tf);
-  var badge     = document.getElementById("c" + tf);
-  var filt      = document.getElementById("rfilt" + tf);
+  var container = document.getElementById("results" + tf);
+  var countBadge = document.getElementById("rc" + tf);
+  var tfBadge    = document.getElementById("c" + tf);
   if (!container) return;
 
   var list = (DATA[tf] || []).filter(function(a) {
@@ -507,73 +821,48 @@ function renderResults(tf) {
     return a.symbol && a.symbol.toLowerCase().indexOf(Q.toLowerCase()) !== -1;
   });
 
-  if (badge) { badge.textContent = list.length; badge.className = "p-badge " + (list.length > 0 ? "on" : "off"); }
-  if (filt)  filt.textContent = Q ? list.length + " matching" : "";
+  // Update badges
+  if (tfBadge)    { tfBadge.textContent = list.length; tfBadge.className = "badge " + (list.length > 0 ? "on" : ""); }
+  if (countBadge) { countBadge.textContent = list.length; countBadge.style.display = list.length > 0 ? "" : "none"; }
 
   if (list.length === 0) {
-    container.innerHTML =
-      '<div class="results-empty"><span style="font-size:26px">' +
-      (Q ? "🔍" : "📡") + '</span><span>' +
-      (Q ? "No signals match "" + Q + """ : "No signals yet — run a scan or wait for auto schedule") +
-      "</span></div>";
+    container.innerHTML = '<div class="results-empty"><div class="empty-icon">🔎</div><div class="empty-msg">No signals found yet</div></div>';
     return;
   }
 
-  // Build card list inside a scrollable wrapper
-  var body = document.createElement("div");
-  body.className = "results-body";
-  for (var i = 0; i < list.length; i++) body.innerHTML += buildSignalCard(list[i]);
-  container.innerHTML = "";
-  container.appendChild(body);
+  container.innerHTML = list.map(function(a) { return buildSignalCard(a, tf); }).join("");
 }
 
 function renderAll() { renderResults("4h"); renderResults("1d"); }
 
 // ── SIGNAL CARD ───────────────────────────────────────────────────────────────
-function buildSignalCard(a) {
+function buildSignalCard(a, tf) {
   var bull = (a.direction || "").toUpperCase() === "BULLISH";
   var sym  = (a.symbol || "?").replace(/_USDT$/, "").replace(/USDT$/, "");
   var time = a.timestamp ? new Date(a.timestamp).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : "—";
   var dc   = bull ? "bull" : "bear";
   var lbl  = bull ? "▲ Bullish CRT" : "▼ Bearish CRT";
-  return (
-    '<div class="sig-card ' + dc + '">' +
-      '<div class="sig-top">' +
-        '<div><span class="sig-sym">' + sym + '</span><span class="sig-pair"> /USDT</span></div>' +
-        '<span class="sig-dir ' + dc + '">' + lbl + '</span>' +
-      '</div>' +
-      '<div class="sig-grid">' +
-        sigCell("Price",                              "$" + fmt(a.currentPrice), "price") +
-        sigCell(bull ? "Swept High" : "Swept Low",   "$" + fmt(bull ? a.c1High : a.c1Low), dc) +
-        sigCell("Sweep Lvl",                         "$" + fmt(a.sweepLevel), dc) +
-        sigCell("C1 High",  "$" + fmt(a.c1High),  "") +
-        sigCell("C1 Low",   "$" + fmt(a.c1Low),   "") +
-        sigCell("C2 High",  "$" + fmt(a.c2High),  "") +
-      '</div>' +
-      '<div class="sig-foot">' +
-        '<span class="sig-foot-tf">' + (a.timeframe || "").toUpperCase() + ' PERP</span>' +
-        '<span class="sig-foot-time">Scanned ' + time + '</span>' +
-      '</div>' +
-    '</div>'
-  );
-}
 
-function sigCell(label, val, cls) {
-  return '<div class="sig-cell"><div class="sig-cell-label">' + label + '</div>' +
-    '<div class="sig-cell-val ' + (cls || "") + '">' + val + '</div></div>';
-}
-
-// ── C) SUMMARY SECTION ───────────────────────────────────────────────────────
-function showSummary(tf, scanned, found, errors, startedAt) {
-  var wrap = document.getElementById("sum" + tf);
-  if (!wrap) return;
-  wrap.className = "sec-summary active";
-  var secs = startedAt ? Math.round((Date.now() - startedAt) / 1000) : 0;
-  var dur  = secs > 60 ? Math.floor(secs/60) + "m " + (secs%60) + "s" : secs + "s";
-  document.getElementById("ssum-scanned" + tf).textContent = scanned  || "—";
-  document.getElementById("ssum-found"   + tf).textContent = found   != null ? found  : "—";
-  document.getElementById("ssum-err"     + tf).textContent = errors  != null ? errors : "—";
-  document.getElementById("ssum-time"    + tf).textContent = secs > 0 ? dur : "—";
+  return '<div class="signal-card ' + dc + '">' +
+    '<div class="sc-header">' +
+      '<div><span class="sc-symbol">' + sym + '</span><span class="sc-usdt"> /USDT</span></div>' +
+      '<span class="sc-dir ' + dc + '">' + lbl + '</span>' +
+    '</div>' +
+    '<div class="sc-body">' +
+      '<div class="sc-grid">' +
+        '<div><div class="sc-field-label">Current Price</div><div class="sc-field-val price">$' + fmt(a.currentPrice) + '</div></div>' +
+        '<div><div class="sc-field-label">' + (bull ? "Swept Above" : "Swept Below") + '</div><div class="sc-field-val ' + dc + '">$' + fmt(bull ? a.c1High : a.c1Low) + '</div></div>' +
+        '<div><div class="sc-field-label">C1 High</div><div class="sc-field-val">$' + fmt(a.c1High) + '</div></div>' +
+        '<div><div class="sc-field-label">C1 Low</div><div class="sc-field-val">$' + fmt(a.c1Low) + '</div></div>' +
+        '<div><div class="sc-field-label">Sweep Level</div><div class="sc-field-val ' + dc + '">$' + fmt(a.sweepLevel) + '</div></div>' +
+        '<div><div class="sc-field-label">Position Now</div><div class="sc-field-val">' + (bull ? "Below C1 High" : "Above C1 Low") + '</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="sc-footer">' +
+      '<span class="sc-tf">' + (a.timeframe || tf).toUpperCase() + ' PERP</span>' +
+      '<span class="sc-ts">Scanned ' + time + '</span>' +
+    '</div>' +
+  '</div>';
 }
 
 // ── FORMAT ────────────────────────────────────────────────────────────────────
@@ -587,142 +876,256 @@ function fmt(n) {
   return n.toFixed(2);
 }
 
-// ── PANEL STATE ───────────────────────────────────────────────────────────────
-function setPanelScanning(tf, active, msg) {
-  var bar  = document.getElementById("scanbar" + tf);
-  var pst  = document.getElementById("pst" + tf);
-  var prog = document.getElementById("prog" + tf);
-  if (active) {
-    if (bar)  bar.className  = "scan-bar active";
-    if (pst)  { pst.className = "p-status scanning"; pst.textContent = "⟳ Scanning"; }
-    if (prog) prog.className  = "prog-wrap active";
-    if (msg)  addLog(tf, msg, "ok");          // log status msg (not a FOUND signal)
-  } else {
-    if (bar)  bar.className  = "scan-bar";
-    if (prog) prog.className  = "prog-wrap";
+// ── LOGS — scan status messages only, no signal data ─────────────────────────
+function appendLog(tf, msg, cls) {
+  // Deduplicate: skip if exact same message already logged
+  if (SEEN_LOGS[tf].has(msg)) return;
+  SEEN_LOGS[tf].add(msg);
+  // Keep seen set bounded
+  if (SEEN_LOGS[tf].size > 500) {
+    var arr = Array.from(SEEN_LOGS[tf]);
+    SEEN_LOGS[tf] = new Set(arr.slice(arr.length - 300));
+  }
+
+  var container = document.getElementById("logs" + tf);
+  if (!container) return;
+
+  // Remove idle placeholder if present
+  var idle = container.querySelector(".log-idle");
+  if (idle) idle.remove();
+
+  var now = new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  var line = document.createElement("div");
+  line.className = "log-line " + (cls || "");
+  line.innerHTML = '<span class="log-timestamp">' + now + '</span><span class="log-text">' + escHtml(msg) + '</span>';
+  container.appendChild(line);
+  container.scrollTop = container.scrollHeight;
+
+  // Keep max 200 lines
+  var lines = container.querySelectorAll(".log-line");
+  if (lines.length > 200) lines[0].remove();
+}
+
+function clearLogs(tf) {
+  var container = document.getElementById("logs" + tf);
+  if (container) {
+    container.innerHTML = '<div class="log-idle"><div class="idle-icon">📡</div><div class="idle-msg">Logs cleared</div></div>';
+    SEEN_LOGS[tf].clear();
   }
 }
 
-function setPanelDone(tf, found, isError) {
-  var pst = document.getElementById("pst" + tf);
-  if (!pst) return;
-  if (isError)       { pst.className = "p-status error"; pst.textContent = "Error"; }
-  else if (found > 0){ pst.className = "p-status done";  pst.textContent = "✓ " + found + " found"; }
-  else               { pst.className = "p-status ready"; pst.textContent = "No signals"; }
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
-function updateProgress(tf, scanned, total, found) {
-  var fill  = document.getElementById("progfill" + tf);
-  var label = document.getElementById("proglbl" + tf);
-  var pct   = total > 0 ? Math.round((scanned / total) * 100) : 0;
-  if (fill)  fill.style.width = pct + "%";
-  if (label) label.textContent = scanned + " / " + total + " scanned · " + found + " found";
+// ── SUMMARY UPDATE ────────────────────────────────────────────────────────────
+function updateSummary(tf, opts) {
+  // opts: { scanned, total, found, errors, startTime, done }
+  var p = PROG[tf];
+  if (opts.scanned != null) p.scanned  = opts.scanned;
+  if (opts.total   != null) p.total    = opts.total;
+  if (opts.found   != null) p.found    = opts.found;
+  if (opts.errors  != null) p.errors   = opts.errors;
+  if (opts.startTime)       p.startTime = opts.startTime;
+
+  var elScanned = document.getElementById("s" + tf + "-scanned");
+  var elFound   = document.getElementById("s" + tf + "-found");
+  var elErrors  = document.getElementById("s" + tf + "-errors");
+  var elTime    = document.getElementById("s" + tf + "-time");
+  var elLast    = document.getElementById("s" + tf + "-lastscan");
+  var elNote    = document.getElementById("s" + tf + "-note");
+
+  if (elScanned) elScanned.textContent = p.total > 0 ? p.scanned + "/" + p.total : (p.scanned > 0 ? p.scanned : "—");
+  if (elFound)   elFound.textContent   = p.found > 0 ? p.found : (opts.done ? "0" : "—");
+  if (elErrors)  elErrors.textContent  = p.errors > 0 ? p.errors : (opts.done ? "0" : "—");
+
+  if (opts.done && p.startTime) {
+    var elapsed = ((Date.now() - p.startTime) / 1000).toFixed(1) + "s";
+    if (elTime) elTime.textContent = elapsed;
+    if (elLast) elLast.textContent = new Date().toLocaleTimeString();
+    if (elNote) {
+      if (p.found > 0) {
+        elNote.textContent = "✓ " + p.found + " signal" + (p.found === 1 ? "" : "s") + " found in " + p.scanned + " pairs scanned.";
+      } else {
+        elNote.textContent = "Scan complete. No CRT setups detected in " + p.scanned + " pairs.";
+      }
+    }
+  } else if (p.scanned > 0) {
+    if (elTime) elTime.textContent = p.startTime ? ((Date.now() - p.startTime) / 1000).toFixed(1) + "s" : "—";
+  }
 }
 
-// ── MANUAL SCAN via SSE ───────────────────────────────────────────────────────
+// ── PROGRESS BAR ──────────────────────────────────────────────────────────────
+function setProgressBar(tf, active, withPercent, pct) {
+  var bar  = document.getElementById("progbar" + tf);
+  var fill = document.getElementById("progfill" + tf);
+  if (!bar) return;
+  if (!active) {
+    bar.className = "scan-progress-bar"; // hide
+    return;
+  }
+  if (withPercent) {
+    bar.className = "scan-progress-bar active";
+    if (fill) fill.style.width = (pct || 0) + "%";
+  } else {
+    bar.className = "scan-progress-bar active indeterminate";
+  }
+}
+
+// ── PANEL STATUS ──────────────────────────────────────────────────────────────
+function setPanelStatus(tf, cls, text) {
+  var el = document.getElementById("pst" + tf);
+  if (!el) return;
+  el.className = "pstatus" + (cls ? " " + cls : "");
+  if (text) el.textContent = text;
+}
+
+// ── SCAN via SSE ──────────────────────────────────────────────────────────────
 function doScan(tf) {
   if (SCAN[tf] === "running" || SCAN[tf] === "connecting") {
-    toast("Scan already running for " + tf.toUpperCase(), "warn"); return;
+    toast("Scan already running for " + tf.toUpperCase() + "…", "warn");
+    return;
   }
+
   if (ES[tf]) { try { ES[tf].close(); } catch(_) {} ES[tf] = null; }
 
   var btn = document.getElementById("b" + tf);
   SCAN[tf] = "connecting";
-  PROG[tf] = {scanned:0, total:0, found:0, errors:0, startedAt: Date.now()};
-
-  // Reset dedup set so this scan cycle gets a fresh log
-  LOG_SEEN[tf]    = new Set();
-  LOAD_LOGGED[tf] = false;   // allow the post-scan load message to appear once
+  PROG[tf] = {scanned:0, total:0, found:0, errors:0, startTime: Date.now()};
 
   if (btn) { btn.disabled = true; btn.textContent = "Scanning…"; btn.className = "btn scanning"; }
 
-  setPanelScanning(tf, true, "Connecting to scan stream…");
+  // Reset log seen-set and clear logs for fresh scan
+  SEEN_LOGS[tf].clear();
+  clearLogs(tf);
+
+  // Clear results — will be repopulated after scan
+  var resultsEl = document.getElementById("results" + tf);
+  if (resultsEl) resultsEl.innerHTML = '<div class="results-empty"><div class="empty-icon">⟳</div><div class="empty-msg">Scanning…</div></div>';
+
+  setProgressBar(tf, true, false);
+  setPanelStatus(tf, "scanning", "⟳ Scanning");
   setSt("Manual " + tf.toUpperCase() + " scan starting…", "live");
 
-  var es = new EventSource(API + "/scan/" + tf + "/stream");
+  // Reset summary
+  updateSummary(tf, {scanned:0, total:0, found:0, errors:0});
+
+  var url = API + "/scan/" + tf + "/stream";
+  dbg("Opening SSE stream:", url);
+
+  var es = new EventSource(url);
   ES[tf] = es;
 
   es.onopen = function() {
+    dbg("SSE open:", tf);
     SCAN[tf] = "running";
-    addLog(tf, "Stream connected", "ok");
+    appendLog(tf, "Stream connected — scan starting…", "start");
   };
 
   es.onmessage = function(e) {
-    var ev; try { ev = JSON.parse(e.data); } catch(_) { return; }
+    var ev;
+    try { ev = JSON.parse(e.data); } catch(_) { return; }
+    dbg("SSE event:", ev.type, ev.symbol || "", ev.msg || "");
 
     switch (ev.type) {
-
       case "start":
-        // Log scan-start status — this is a status message, goes to A (logs)
-        addLog(tf, ev.msg || "Scan started", "ok");
-        setSt("Scanning " + tf.toUpperCase() + "…", "live");
-        var m = ev.msg && ev.msg.match(/(\d+) pairs/);
-        if (m) PROG[tf].total = parseInt(m[1]);
+        // Log the start message
+        appendLog(tf, "▶ " + (ev.msg || "Scan started"), "start");
+        setSt("Scanning " + tf.toUpperCase() + " — " + (ev.msg || ""), "live");
+        var match = ev.msg && ev.msg.match(/(\d+) pairs/);
+        if (match) {
+          PROG[tf].total = parseInt(match[1]);
+          updateSummary(tf, {total: PROG[tf].total});
+        }
         break;
 
       case "scanning":
-        // Progress bar update only — individual "scanning X" lines are too noisy for logs
+        // Only increment counter — do NOT log individual scanning lines
         PROG[tf].scanned++;
-        updateProgress(tf, PROG[tf].scanned, PROG[tf].total, PROG[tf].found);
+        var pct = PROG[tf].total > 0 ? Math.round((PROG[tf].scanned / PROG[tf].total) * 100) : 0;
+        setProgressBar(tf, true, true, pct);
+        updateSummary(tf, {scanned: PROG[tf].scanned});
+        // Update panel sub-status without spamming logs
+        setPanelStatus(tf, "scanning", "⟳ " + PROG[tf].scanned + "/" + PROG[tf].total);
         break;
 
       case "found":
-        // ✅ FOUND signals go ONLY to section B (results), NOT to the log
+        // Found signals go to RESULTS, NOT logs
         PROG[tf].found++;
-        // We don't addLog here — the result appears in cards after scan completes
+        updateSummary(tf, {found: PROG[tf].found});
+        if (ev.extra && ev.extra.alert) {
+          var already = DATA[tf].some(function(x) { return x.id === ev.extra.alert.id; });
+          if (!already) {
+            DATA[tf].push(ev.extra.alert);
+            renderResults(tf);
+          }
+        }
         break;
 
       case "error":
-        // Suppress per-symbol errors — only fatal ones go in log
+        // Scan errors go to logs
         PROG[tf].errors++;
+        appendLog(tf, "✗ Error: " + (ev.symbol ? ev.symbol + " — " : "") + (ev.msg || ""), "error");
+        updateSummary(tf, {errors: PROG[tf].errors});
         break;
 
       case "done":
-        // Backend "done" event = scan finishing, goes to log as status
-        addLog(tf, ev.msg || "Scan finishing…", "ok");
+        appendLog(tf, "✓ " + (ev.msg || "Scan phase done"), "done");
+        setSt(tf.toUpperCase() + " scan finishing…", "live");
         break;
 
       case "complete":
-        // Status update in log (count only, no symbol list)
-        addLog(tf, "Scan complete — fetching " + (ev.found || 0) + " signals…", "ok");
+        dbg("SSE complete: found=" + ev.found + " — fetching results from /api/alerts/" + tf);
+        appendLog(tf, "✓ Scan complete (" + ev.found + " signals) — loading final results…", "done");
         SCAN[tf] = "cooling";
-        ES[tf]   = null;
+        ES[tf] = null;
         es.close();
 
-        // Fetch confirmed results from backend (manualCache), then populate section B
         fetch(API + "/alerts/" + tf)
           .then(function(r) { return r.json(); })
           .then(function(j2) {
-            if (j2.success && Array.isArray(j2.alerts)) DATA[tf] = j2.alerts;
+            if (j2.success && Array.isArray(j2.alerts)) {
+              DATA[tf] = j2.alerts;
+              dbg("Post-complete fetch OK:", DATA[tf].length, "items");
+            }
           })
-          .catch(function() { /* keep whatever accumulated in DATA[tf] */ })
+          .catch(function(e) { dbg("Post-complete fetch error:", e.message); })
           .finally(function() {
-            var p = PROG[tf];
-            // B) Render signal cards — no system messages here
             renderResults(tf);
-            setPanelDone(tf, DATA[tf].length, false);
-            // C) Show summary stats
-            showSummary(tf, p.total, DATA[tf].length, p.errors, p.startedAt);
-            // A) One final status line in log
-            addLog(tf, DATA[tf].length + " signals loaded into results", "ok");
-            onScanComplete(tf, btn, DATA[tf].length, false);
-            setTimeout(function() { if (SCAN[tf] === "cooling") SCAN[tf] = "done"; }, 2000);
+            onScanComplete(tf, btn, ev.found || DATA[tf].length, false);
+            setTimeout(function() {
+              if (SCAN[tf] === "cooling") { SCAN[tf] = "done"; dbg("Cooling released for", tf); }
+            }, 2000);
           });
         break;
 
       case "fatal":
-        addLog(tf, "Fatal: " + (ev.msg || "unknown error"), "err");
-        SCAN[tf] = "error"; ES[tf] = null; es.close();
+        dbg("SSE fatal:", ev.msg);
+        appendLog(tf, "✗ Fatal: " + (ev.msg || "Unknown error"), "error");
+        SCAN[tf] = "error";
+        ES[tf] = null;
+        es.close();
         onScanComplete(tf, btn, -1, true);
+        break;
+
+      case "store_saved":
+        appendLog(tf, "💾 " + (ev.msg || "Results saved"), "done");
+        break;
+
+      default:
+        // skip noisy candles/price/checking events
         break;
     }
   };
 
-  es.onerror = function() {
+  es.onerror = function(e) {
+    dbg("SSE error:", e);
     if (SCAN[tf] === "running" || SCAN[tf] === "connecting") {
-      addLog(tf, "Stream disconnected — polling for results…", "warn");
-      setSt("Stream lost — polling…", "warn");
-      es.close(); ES[tf] = null;
+      appendLog(tf, "Stream interrupted — scan may still be running on server", "error");
+      setSt("Stream disconnected — results will appear when scan finishes", "warn");
+      toast("SSE stream interrupted. Polling for results…", "warn");
+      es.close();
+      ES[tf] = null;
       SCAN[tf] = "polling";
       pollForResults(tf, btn, 0, 20);
     }
@@ -730,50 +1133,72 @@ function doScan(tf) {
 }
 
 // ── POLLING FALLBACK ──────────────────────────────────────────────────────────
-function pollForResults(tf, btn, attempt, max) {
-  if (attempt >= max) {
+function pollForResults(tf, btn, attempt, maxAttempts) {
+  if (attempt >= maxAttempts) {
+    dbg("Polling timed out for", tf);
     renderResults(tf);
     onScanComplete(tf, btn, DATA[tf].length, false);
     return;
   }
-  addLog(tf, "Polling… attempt " + (attempt+1) + "/" + max, "warn");
+  dbg("Polling attempt", attempt + 1, "for", tf);
+  appendLog(tf, "Polling for results… (attempt " + (attempt + 1) + "/" + maxAttempts + ")", "status");
+
   setTimeout(function() {
     fetch(API + "/alerts/" + tf)
       .then(function(r) { return r.json(); })
       .then(function(j) {
-        if (!j.success) throw new Error("bad");
+        if (!j.success) throw new Error("bad response");
         if (j.scanState && j.scanState.running) {
           var p = j.scanState.progress;
-          if (p) updateProgress(tf, p.scanned, p.total, p.found);
-          pollForResults(tf, btn, attempt + 1, max);
+          if (p) {
+            PROG[tf].scanned = p.scanned;
+            PROG[tf].total   = p.total;
+            PROG[tf].found   = p.found;
+            updateSummary(tf, {scanned: p.scanned, total: p.total, found: p.found});
+          }
+          pollForResults(tf, btn, attempt + 1, maxAttempts);
           return;
         }
-        if (Array.isArray(j.alerts)) DATA[tf] = j.alerts;
+        if (Array.isArray(j.alerts)) { DATA[tf] = j.alerts; }
         SCAN[tf] = "done";
-        renderResults(tf);
-        showSummary(tf, PROG[tf].total, DATA[tf].length, PROG[tf].errors, PROG[tf].startedAt);
         onScanComplete(tf, btn, DATA[tf].length, false);
       })
-      .catch(function() { pollForResults(tf, btn, attempt + 1, max); });
+      .catch(function(e) {
+        dbg("Poll error:", e.message);
+        pollForResults(tf, btn, attempt + 1, maxAttempts);
+      });
   }, 10000);
 }
 
 // ── SCAN COMPLETE ─────────────────────────────────────────────────────────────
 function onScanComplete(tf, btn, found, isError) {
-  if (SCAN[tf] !== "cooling") SCAN[tf] = isError ? "error" : "done";
+  if (SCAN[tf] !== "cooling") { SCAN[tf] = isError ? "error" : "done"; }
+
   if (btn) { btn.disabled = false; btn.textContent = "Scan " + tf.toUpperCase(); btn.className = "btn"; }
-  setPanelScanning(tf, false);
-  setPanelDone(tf, found, isError);
+
+  setProgressBar(tf, false);
+
+  // Update summary with final numbers
+  updateSummary(tf, {found: isError ? 0 : (found > 0 ? found : 0), done: true});
+
   if (isError) {
-    setSt("✗ " + tf.toUpperCase() + " scan error", "err");
-    toast("Scan error for " + tf.toUpperCase(), "err");
+    setPanelStatus(tf, "error", "✗ Error");
+    setSt("✗ " + tf.toUpperCase() + " scan error — check logs", "err");
+    toast("Scan error — check logs panel", "err");
+    appendLog(tf, "Scan ended with errors. See error lines above.", "error");
   } else if (found > 0) {
-    setSt("✓ " + tf.toUpperCase() + " — " + found + " signals (UI only)", "done");
-    toast(tf.toUpperCase() + " complete — " + found + " CRT signals found", "ok");
+    setPanelStatus(tf, "done", "✓ " + found + " signals");
+    setSt("✓ " + tf.toUpperCase() + " done — " + found + " setups (UI only, not saved to history)", "done");
+    toast(tf.toUpperCase() + " scan complete — " + found + " CRT setups found!", "ok");
+    appendLog(tf, "✓ Done — " + found + " signal" + (found === 1 ? "" : "s") + " moved to Signals Found panel.", "done");
   } else {
-    setSt("✓ " + tf.toUpperCase() + " — no signals found", "done");
-    toast(tf.toUpperCase() + " complete — no signals", "info");
+    setPanelStatus(tf, "", "No signals");
+    setSt("✓ " + tf.toUpperCase() + " done — no CRT setups found", "done");
+    toast(tf.toUpperCase() + " scan complete — no setups found", "info");
+    appendLog(tf, "✓ Done — no CRT setups detected.", "done");
   }
+
+  renderResults(tf);
 }
 
 // ── HISTORY ───────────────────────────────────────────────────────────────────
@@ -785,7 +1210,11 @@ function loadHist() {
   if (btn) { btn.disabled = true; btn.textContent = "Loading…"; }
   fetch(url)
     .then(function(r) { return r.json(); })
-    .then(function(j) { HIST = j.data || []; renderHist(); toast("Loaded " + HIST.length + " records", "ok"); })
+    .then(function(j) {
+      HIST = j.data || [];
+      renderHist();
+      toast("Loaded " + HIST.length + " records", "ok");
+    })
     .catch(function(e) { toast("History error: " + e.message, "err"); })
     .finally(function() { if (btn) { btn.disabled = false; btn.textContent = "↺ History"; } });
 }
@@ -801,7 +1230,7 @@ function renderHist() {
   });
   if (cnt) cnt.textContent = list.length + " records";
   if (!list.length) {
-    body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:36px;color:#2e3450">' +
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#22273a">' +
       (HIST.length === 0 ? 'Click "↺ History" to load' : "No records match filters") + '</td></tr>';
     return;
   }
@@ -810,18 +1239,18 @@ function renderHist() {
     var sym   = (r.symbol || "?").replace(/_USDT$/, "").replace(/USDT$/, "");
     var ts    = r.scanned_at ? new Date(r.scanned_at).toLocaleString([], {month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "—";
     var price = r.current_price || (r.raw && r.raw.currentPrice) || 0;
-    var c1h   = r.c1_high      || (r.raw && r.raw.c1High)        || 0;
-    var c1l   = r.c1_low       || (r.raw && r.raw.c1Low)         || 0;
-    var sweep = r.sweep_level  || (r.raw && r.raw.sweepLevel)     || 0;
+    var c1h   = r.c1_high  || (r.raw && r.raw.c1High)  || 0;
+    var c1l   = r.c1_low   || (r.raw && r.raw.c1Low)   || 0;
+    var sweep = r.sweep_level || (r.raw && r.raw.sweepLevel) || 0;
     var dc    = bull ? "#00e5a0" : "#ff4b6e";
     var dcbg  = bull ? "rgba(0,229,160,.1)" : "rgba(255,75,110,.1)";
     return '<tr>' +
-      '<td><span style="color:#c8cfe0;font-weight:700">' + sym + '</span></td>' +
-      '<td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:9px;background:' + dcbg + ';color:' + dc + '">' + (bull ? "▲ Bullish" : "▼ Bearish") + '</span></td>' +
-      '<td><span style="font-size:10px;padding:2px 8px;border-radius:9px;background:rgba(77,159,255,.1);color:#4d9fff;font-weight:700">' + (r.timeframe || "").toUpperCase() + '</span></td>' +
+      '<td><span style="color:#c8cedf;font-weight:700">' + sym + '</span></td>' +
+      '<td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:9px;background:' + dcbg + ';color:' + dc + ';border:1px solid ' + dc + '33">' + (bull ? "▲ Bull" : "▼ Bear") + '</span></td>' +
+      '<td><span style="font-size:10px;padding:2px 8px;border-radius:9px;background:rgba(77,159,255,.1);color:#4d9fff;font-weight:700;border:1px solid rgba(77,159,255,.2)">' + (r.timeframe || "").toUpperCase() + '</span></td>' +
       '<td style="color:#4d9fff">$' + fmt(price) + '</td>' +
-      '<td style="color:#c8cfe0">$' + fmt(c1h) + '</td>' +
-      '<td style="color:#c8cfe0">$' + fmt(c1l) + '</td>' +
+      '<td style="color:#8a93b0">$' + fmt(c1h) + '</td>' +
+      '<td style="color:#8a93b0">$' + fmt(c1l) + '</td>' +
       '<td style="color:' + dc + '">$' + fmt(sweep) + '</td>' +
       '<td style="color:#4a5270">' + ts + '</td>' +
     '</tr>';
@@ -840,7 +1269,8 @@ function switchTab(t) {
 
 function setOnline(ok) {
   ONLINE = ok;
-  var d = document.getElementById("dot"), l = document.getElementById("dlabel");
+  var d = document.getElementById("dot");
+  var l = document.getElementById("dlabel");
   if (d) d.className = "dot " + (ok ? "on" : "off");
   if (l) l.textContent = ok ? "Backend Online" : "Backend Offline";
 }
@@ -858,19 +1288,24 @@ function setLast(ls) {
 
 function toast(msg, type) {
   var t = document.createElement("div");
-  t.className = "toast " + (type || "ok");
+  t.className   = "toast " + (type || "ok");
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(function() { t.classList.add("show"); }, 10);
-  setTimeout(function() { t.classList.remove("show"); setTimeout(function() { t.remove(); }, 400); }, 4500);
+  setTimeout(function() {
+    t.classList.remove("show");
+    setTimeout(function() { t.remove(); }, 400);
+  }, 4500);
 }
 
+// ── SEARCH ────────────────────────────────────────────────────────────────────
 document.getElementById("search").addEventListener("input", function(e) {
   Q = e.target.value.trim();
   renderAll();
   if (CTAB === "hist") renderHist();
 });
 
+// ── START ─────────────────────────────────────────────────────────────────────
 boot();
 </script>
 </body>
